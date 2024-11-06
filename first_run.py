@@ -1,11 +1,15 @@
 import gymnasium as gym
 import numpy as np
+from custom_env import AntEnv
+from pprint import pprint
+from ray.rllib.algorithms.ppo import PPOConfig
 
-ROBOT_NAME = 'my_spot'
+
+ROBOT_NAME = 'boston_dynamics_spot'
+
 # Create the environment
-env = gym.make(
-    'Ant-v5',
-    xml_file='./boston_dynamics_spot/scene.xml',
+env = AntEnv(
+    xml_file='./robots/'+ROBOT_NAME+'/scene.xml',
     forward_reward_weight=1,
     ctrl_cost_weight=0.05,
     contact_cost_weight=5e-4,
@@ -16,23 +20,9 @@ env = gym.make(
     exclude_current_positions_from_observation=False,
     reset_noise_scale=0.1,
     frame_skip=25,
-    max_episode_steps=1000,
     render_mode='human'
 )
-
 # Initial reset
 obs, _ = env.reset()  
 total_reward = 0
-
-for step in range(1000):  # Run for 1000 steps
-    action = np.zeros(env.action_space.shape)  # Create an action that keeps the robot standing still
-    obs, reward, done, truncated, _ = env.step(action)  # Take a step in the environment
-    total_reward += reward
-    env.render()  # Render environment (optional, depending on setup)
-
-    # if done or truncated:  # Reset if episode is done or truncated
-    #     obs, _ = env.reset()
-    #     print(f"Episode finished with total reward: {total_reward}")
-    #     total_reward = 0
-
 env.close()  # Close the environment
