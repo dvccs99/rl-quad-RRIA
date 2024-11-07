@@ -18,8 +18,7 @@ class AntEnv(MujocoEnv, utils.EzPickle):
         "render_modes": [
             "human",
             "rgb_array",
-            "depth_array",
-            "rgbd_tuple",
+            "depth_array"
         ],
     }
 
@@ -39,7 +38,6 @@ class AntEnv(MujocoEnv, utils.EzPickle):
         reset_noise_scale: float = 0.1,
         exclude_current_positions_from_observation: bool = True,
         include_cfrc_ext_in_observation: bool = True,
-        **kwargs,
     ):
         utils.EzPickle.__init__(
             self,
@@ -57,7 +55,6 @@ class AntEnv(MujocoEnv, utils.EzPickle):
             reset_noise_scale,
             exclude_current_positions_from_observation,
             include_cfrc_ext_in_observation,
-            **kwargs,
         )
 
         self._forward_reward_weight = forward_reward_weight
@@ -83,7 +80,6 @@ class AntEnv(MujocoEnv, utils.EzPickle):
             observation_space=None,  # needs to be defined after
             default_camera_config=default_camera_config,
             render_mode='human',
-            **kwargs,
         )
 
         self.metadata = {
