@@ -70,7 +70,7 @@ class AntEnv(MujocoEnv, utils.EzPickle):
         self._exclude_current_positions_from_observation = (
             exclude_current_positions_from_observation
         )
-        
+      
         self._include_cfrc_ext_in_observation = include_cfrc_ext_in_observation
 
         MujocoEnv.__init__(
