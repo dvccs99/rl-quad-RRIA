@@ -10,7 +10,7 @@ DEFAULT_CAMERA_CONFIG = {
 }
 
 
-class AntEnv(MujocoEnv, utils.EzPickle):
+class QuadEnv(MujocoEnv, utils.EzPickle):
     """
     """
 
