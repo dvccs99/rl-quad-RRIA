@@ -11,11 +11,6 @@ class QuadEnv(MujocoEnv):
     """
     """
 
-    metadata = {"render_modes": [
-                "human",
-                "rgb_array",
-                "depth_array"]}
-
     def __init__(self, env_parameters, mujoco_parameters):
         self._forward_reward_weight = env_parameters["forward_reward_weight"]
         self._ctrl_cost_weight = env_parameters["ctrl_cost_weight"]
@@ -29,7 +24,10 @@ class QuadEnv(MujocoEnv):
         self._include_cfrc_ext_in_observation = env_parameters["include_cfrc_ext_in_observation"]
         self._main_body: Union[int, str] = 1
 
-        # default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA_CONFIG,
+        self.metadata = {"render_modes": [
+                         "human",
+                         "rgb_array",
+                         "depth_array"]}
 
         MujocoEnv.__init__(self,
                            model_path=mujoco_parameters['xml_file'],
@@ -38,12 +36,7 @@ class QuadEnv(MujocoEnv):
                            default_camera_config=DEFAULT_CAMERA_CONFIG,
                            render_mode=mujoco_parameters['render_mode'])
 
-        self.metadata = {"render_modes": [
-                         "human",
-                         "rgb_array",
-                         "depth_array",
-                         "rgbd_tuple"],
-                         "render_fps": int(np.round(1.0 / self.dt))}
+        self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
 
         obs_size = self.data.qpos.size + self.data.qvel.size
         obs_size -= 2 * self._exclude_current_positions_from_observation
