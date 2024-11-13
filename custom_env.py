@@ -12,16 +12,12 @@ class QuadEnv(MujocoEnv):
     """
 
     def __init__(self, env_parameters, mujoco_parameters):
-        self._forward_reward_weight = env_parameters["forward_reward_weight"]
+        self.healthy_reward_weight = env_parameters["healthy_reward_weight"]
+        self.reset_noise_scale = env_parameters["reset_noise_scale"]
+        self.forward_reward_weight = env_parameters["forward_reward_weight"]
         self._ctrl_cost_weight = env_parameters["ctrl_cost_weight"]
         self._contact_cost_weight = env_parameters["contact_cost_weight"]
-        self._healthy_reward = env_parameters["healthy_reward"]
-        self._terminate_when_unhealthy = env_parameters["terminate_when_unhealthy"]
-        self._healthy_z_range = env_parameters["healthy_z_range"]
         self._contact_force_range = env_parameters["contact_force_range"]
-        self._reset_noise_scale = env_parameters["reset_noise_scale"]
-        self._exclude_current_positions_from_observation = env_parameters["exclude_current_positions_from_observation"]
-        self._include_cfrc_ext_in_observation = env_parameters["include_cfrc_ext_in_observation"]
         self._main_body: Union[int, str] = 1
 
         self.metadata = {"render_modes": [
@@ -39,54 +35,83 @@ class QuadEnv(MujocoEnv):
         self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
 
         obs_size = self.data.qpos.size + self.data.qvel.size
-        obs_size -= 2 * self._exclude_current_positions_from_observation
-        obs_size += self.data.cfrc_ext[1:].size * self._include_cfrc_ext_in_observation
+        obs_size -= 2
+        obs_size += self.data.cfrc_ext[1:].size
 
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_size, ), dtype=np.float64)
 
-        self.observation_structure = {"skipped_qpos": 2 * self._exclude_current_positions_from_observation,
-                                      "qpos": self.data.qpos.size - 2 * self._exclude_current_positions_from_observation,
-                                      "qvel": self.data.qvel.size,
-                                      "cfrc_ext": self.data.cfrc_ext[1:].size * self._include_cfrc_ext_in_observation}
+    @property
+    def is_healthy(self) -> bool:
+        """
+        Determines if the robot is "healthy", that is, if the values of its
+        state space are finite and its z coordinate is inside the interval
+        [MIN_Z, MAX_Z].
+
+        Returns:
+            bool: True if the robot is healthy, False otherwise
+        """
+        MIN_Z = 0.2
+        MAX_Z = 1.0
+
+        state = self.state_vector()
+        is_healthy = np.isfinite(state).all() and MIN_Z <= state[2] <= MAX_Z
+        return is_healthy
 
     @property
-    def healthy_reward(self):
-        return self.is_healthy * self._healthy_reward
+    def healthy_reward(self) -> float:
+        """
+        Calculates the reward given if the robot is healthy.
+
+        Returns:
+            float: reward value
+        """
+        return self.is_healthy * self.healthy_reward_weight
 
     def control_cost(self, action):
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
         return control_cost
 
     @property
-    def contact_forces(self):
+    def contact_forces(self) -> np.ndarray:
+        """
+        Returns the external contact forces suffered by the model, clipped by
+        the minimal contact force and the maximal contact force.
+
+        Returns:
+            np.ndarray: array containing the clipped forces.
+        """
+        MIN_CONTACT_FORCE = -1.0
+        MAX_CONTACT_FORCE = 1.0
+
         raw_contact_forces = self.data.cfrc_ext
-        min_value, max_value = self._contact_force_range
-        contact_forces = np.clip(raw_contact_forces, min_value, max_value)
+        contact_forces = np.clip(raw_contact_forces,
+                                 MIN_CONTACT_FORCE,
+                                 MAX_CONTACT_FORCE)
         return contact_forces
 
     @property
-    def contact_cost(self):
-        contact_cost = self._contact_cost_weight * np.sum(np.square(self.contact_forces))
+    def contact_cost(self) -> float:
+        """
+        Cost created by external contact forces.
+
+        Returns:
+            float: cost value
+        """
+        contact_forces_value = np.sum(np.square(self.contact_forces))
+        contact_cost = self._contact_cost_weight * contact_forces_value
         return contact_cost
 
-    @property
-    def is_healthy(self):
-        state = self.state_vector()
-        min_z, max_z = self._healthy_z_range
-        is_healthy = np.isfinite(state).all() and min_z <= state[2] <= max_z
-        return is_healthy
-
     def step(self, action):
-        xy_position_before = self.data.body(self._main_body).xpos[:2].copy()
+        xy_position_before = self.data.body(1).xpos[:2].copy()
         self.do_simulation(action, self.frame_skip)
-        xy_position_after = self.data.body(self._main_body).xpos[:2].copy()
+        xy_position_after = self.data.body(1).xpos[:2].copy()
 
         xy_velocity = (xy_position_after - xy_position_before) / self.dt
         x_velocity, y_velocity = xy_velocity
 
         observation = self._get_obs()
         reward, reward_info = self._get_rew(x_velocity, action)
-        terminated = (not self.is_healthy) and self._terminate_when_unhealthy
+        terminated = not self.is_healthy
         info = {
             "x_position": self.data.qpos[0],
             "y_position": self.data.qpos[1],
@@ -102,7 +127,7 @@ class QuadEnv(MujocoEnv):
         return observation, reward, terminated, False, info
 
     def _get_rew(self, x_velocity: float, action):
-        forward_reward = x_velocity * self._forward_reward_weight
+        forward_reward = x_velocity * self.forward_reward_weight
         healthy_reward = self.healthy_reward
         rewards = forward_reward + healthy_reward
 
@@ -119,26 +144,26 @@ class QuadEnv(MujocoEnv):
 
         return reward, reward_info
 
-    def _get_obs(self):
+    def _get_obs(self) -> np.ndarray:
+        """
+        Gymnasium observation function. Needs more detail.
+
+        Returns:
+            np.ndarray: _description_
+        """
         position = self.data.qpos.flatten()
+        position = position[2:]
         velocity = self.data.qvel.flatten()
-
-        if self._exclude_current_positions_from_observation:
-            position = position[2:]
-
-        if self._include_cfrc_ext_in_observation:
-            contact_force = self.contact_forces[1:].flatten()
-            return np.concatenate((position, velocity, contact_force))
-        else:
-            return np.concatenate((position, velocity))
+        contact_force = self.contact_forces[1:].flatten()
+        return np.concatenate((position, velocity, contact_force))
 
     def reset_model(self):
-        noise_low = -self._reset_noise_scale
-        noise_high = self._reset_noise_scale
+        noise_low = -self.reset_noise_scale
+        noise_high = self.reset_noise_scale
 
         qpos = self.init_qpos + self.np_random.uniform(
             low=noise_low, high=noise_high, size=self.model.nq)
-        qvel = (self.init_qvel + self._reset_noise_scale * self.np_random.standard_normal(self.model.nv))
+        qvel = (self.init_qvel + self.reset_noise_scale * self.np_random.standard_normal(self.model.nv))
         self.set_state(qpos, qvel)
 
         observation = self._get_obs()

@@ -5,11 +5,10 @@ env_parameters = {
     'forward_reward_weight': 1,
     'ctrl_cost_weight': 0.05,
     'contact_cost_weight': 5e-4,
-    'healthy_reward': 1,
+    'healthy_reward_weight': 1,
     'main_body': 1,
     'healthy_z_range': (0.195, 0.75),
     'include_cfrc_ext_in_observation': True,
-    'exclude_current_positions_from_observation': False,
     'terminate_when_unhealthy': True,
     'reset_noise_scale': 0.1,
     'contact_force_range': (-1.0, 1.0)
@@ -17,7 +16,7 @@ env_parameters = {
 
 mujoco_parameters = {
     'xml_file': './robots/boston_dynamics_spot/scene.xml',
-    'frame_skip': 50,
+    'frame_skip': 5,
     'observation_space': None,  # needs to be defined after
     'default_camera_config': 'default_camera_config',
     'render_mode': 'human'
