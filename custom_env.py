@@ -28,17 +28,22 @@ class QuadEnv(MujocoEnv):
         MujocoEnv.__init__(self,
                            model_path=mujoco_parameters['xml_file'],
                            frame_skip=mujoco_parameters['frame_skip'],
-                           observation_space=mujoco_parameters['observation_space'],  # needs to be defined after
+                           observation_space=None,  # needs to be defined after
                            default_camera_config=DEFAULT_CAMERA_CONFIG,
                            render_mode=mujoco_parameters['render_mode'])
 
         self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
 
         obs_size = self.data.qpos.size + self.data.qvel.size
+
+        #TODO: EXCLUDE X AND Y?
         obs_size -= 2
         obs_size += self.data.cfrc_ext[1:].size
 
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_size, ), dtype=np.float64)
+        self.observation_space = Box(low=-np.inf,
+                                     high=np.inf,
+                                     shape=(obs_size,),
+                                     dtype=np.float64)
 
     @property
     def is_healthy(self) -> bool:
@@ -67,7 +72,16 @@ class QuadEnv(MujocoEnv):
         """
         return self.is_healthy * self.healthy_reward_weight
 
-    def control_cost(self, action):
+    def control_cost(self, action: np.ndarray) -> float:
+        """
+        Gives the cost associated to the size of the taken action.
+
+        Args:
+            action (np.ndarray): Torques of all 12 joints.
+
+        Returns:
+            float: control cost
+        """
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
         return control_cost
 
@@ -101,7 +115,27 @@ class QuadEnv(MujocoEnv):
         contact_cost = self._contact_cost_weight * contact_forces_value
         return contact_cost
 
-    def step(self, action):
+    def step(
+        self,
+        action: np.ndarray,
+            ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        """
+
+
+        Args:
+            action (np.ndarray): Torques of all 12 joints
+
+        Returns:
+            tuple[np.ndarray, float, bool, bool, dict]:
+                - Observation
+                - Reward
+                - Terminated
+                - Truncated: Is set to false as the time limit is handled by
+                  the `TimeLimit` wrapper added during `make`
+                - Info
+
+        """
+
         xy_position_before = self.data.body(1).xpos[:2].copy()
         self.do_simulation(action, self.frame_skip)
         xy_position_after = self.data.body(1).xpos[:2].copy()
@@ -109,9 +143,10 @@ class QuadEnv(MujocoEnv):
         xy_velocity = (xy_position_after - xy_position_before) / self.dt
         x_velocity, y_velocity = xy_velocity
 
-        observation = self._get_obs()
-        reward, reward_info = self._get_rew(x_velocity, action)
+        observation = self.__get_obs()
+        reward, reward_info = self.__get_rew(x_velocity, action)
         terminated = not self.is_healthy
+        truncated = False
         info = {
             "x_position": self.data.qpos[0],
             "y_position": self.data.qpos[1],
@@ -123,10 +158,18 @@ class QuadEnv(MujocoEnv):
 
         if self.render_mode == "human":
             self.render()
-        # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
-        return observation, reward, terminated, False, info
+        return observation, reward, terminated, truncated, info
 
-    def _get_rew(self, x_velocity: float, action):
+    def __get_rew(self, x_velocity: float, action) -> tuple:
+        """_summary_
+
+        Args:
+            x_velocity (float): _description_
+            action (_type_): _description_
+
+        Returns:
+            tuple: _description_
+        """
         forward_reward = x_velocity * self.forward_reward_weight
         healthy_reward = self.healthy_reward
         rewards = forward_reward + healthy_reward
@@ -144,7 +187,7 @@ class QuadEnv(MujocoEnv):
 
         return reward, reward_info
 
-    def _get_obs(self) -> np.ndarray:
+    def __get_obs(self) -> np.ndarray:
         """
         Gymnasium observation function. Needs more detail.
 
@@ -157,20 +200,23 @@ class QuadEnv(MujocoEnv):
         contact_force = self.contact_forces[1:].flatten()
         return np.concatenate((position, velocity, contact_force))
 
-    def reset_model(self):
+    def reset_model(self) -> np.ndarray:
+        """
+        Resets the model's joint positions and joint velocities.
+
+        Returns:
+            np.ndarray: observation after reset.
+        """
+
         noise_low = -self.reset_noise_scale
         noise_high = self.reset_noise_scale
 
         qpos = self.init_qpos + self.np_random.uniform(
             low=noise_low, high=noise_high, size=self.model.nq)
-        qvel = (self.init_qvel + self.reset_noise_scale * self.np_random.standard_normal(self.model.nv))
+
+        qvel_noise = self.np_random.standard_normal(self.model.nv)
+        qvel = (self.init_qvel + self.reset_noise_scale * qvel_noise)
+
         self.set_state(qpos, qvel)
-
-        observation = self._get_obs()
-
+        observation = self.__get_obs()
         return observation
-
-    def _get_reset_info(self):
-        return {"x_position": self.data.qpos[0],
-                "y_position": self.data.qpos[1],
-                "distance_from_origin": np.linalg.norm(self.data.qpos[0:2], ord=2)}
