@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "rl-quad-rria"
+version = "0.1.0"
+description = "Package containing the files for training a quadruped robot in an irregular terrain on MuJoCo simualtor"
+authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+gymnasium = "^1.0.0"
+mediapy = "^1.2.2"
+jax = "^0.4.35"
+flax = "^0.10.2"
+mujoco = "^3.2.5"
+brax = "^0.11.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
