@@ -1,10 +1,9 @@
-#@title Import MuJoCo, MJX, and Brax
 from datetime import datetime
 from pathlib import Path
 from etils import epath
 import functools
 from IPython.display import HTML
-from typing import Any, Dict, Sequence, Tuple, Union
+from typing import Any, Dict, Sequence, Tuple, Union, List
 import os
 from ml_collections import config_dict
 
@@ -15,13 +14,12 @@ import numpy as np
 from flax.training import orbax_utils
 from flax import struct
 from matplotlib import pyplot as plt
-import mediapy as media
 from orbax import checkpoint as ocp
 
 import mujoco
 from mujoco import mjx
 
-from brax import base, envs, math
+from brax import base, math
 from brax.base import Base, Motion, Transform
 from brax.base import State as PipelineState
 from brax.envs.base import Env, PipelineEnv, State
@@ -31,12 +29,15 @@ from brax.training.agents.ppo import networks as ppo_networks
 from brax.io import html, mjcf, model
 
 
-def get_config():
+def get_config() -> Dict:
     """
     Returns reward configuration for quadruped training environment. All
     physical quantities are in SI units, if not speficied otherwise, i.e.
-    joint positions in rad, positions in meters, torques in Nm and time in 
+    joint positions in rad, positions in meters, torques in Nm and time in
     seconds and forces in Newtons.
+
+    Returns:
+        Dict: Dictionary with configuration values.
     """
 
     default_config = {"tracking_lin_vel": 1.5,
@@ -61,7 +62,6 @@ class QuadEnv(PipelineEnv):
     Features a joystick controller.
     """
 
-
     def __init__(
         self,
         obs_noise: float = 0.05,
@@ -70,10 +70,8 @@ class QuadEnv(PipelineEnv):
         robot_name: str = 'anybotics_anymal_c',
         **kwargs,
     ):
-        ROBOT_SCENE_PATH = Path('robots/'+robot_name+'/scene_mjx.xml')
-
-        path = ROBOT_SCENE_PATH
-        sys = mjcf.load(path)
+        ROBOT_SCENE_PATH = Path('rl-quad-rria', 'robots', robot_name, 'scene_mjx.xml')
+        sys = mjcf.load(ROBOT_SCENE_PATH)
         self._dt = 0.02  # this environment is 50 fps
         sys = sys.tree_replace({'opt.timestep': 0.004})
 
@@ -81,48 +79,19 @@ class QuadEnv(PipelineEnv):
         super().__init__(sys, backend='mjx', n_frames=n_frames)
 
         self.reward_config = get_config()
-
         self._torso_idx = mujoco.mj_name2id(
-            sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, 'torso'
-        )
-
+                          sys.mj_model,
+                          mujoco.mjtObj.mjOBJ_BODY.value,
+                          'torso'
+                        )
         self.action_scale = action_scale
         self.obs_noise = obs_noise
         self.kick_vel = kick_vel
-        self.init_q = jp.array(sys.mj_model.keyframe('home').qpos)
-        self.default_pose = sys.mj_model.keyframe('home').qpos[7:]
+        self.init_q = jp.array(sys.mj_model.keyframe('standing').qpos)
+        self.default_pose = sys.mj_model.keyframe('standing').qpos[7:]
         self.lowers = jp.array([-0.7, -1.0, 0.05] * 4)
         self.uppers = jp.array([0.52, 2.1, 2.1] * 4)
 
-        feet_site = [
-            'foot_front_left',
-            'foot_hind_left',
-            'foot_front_right',
-            'foot_hind_right',
-        ]
-
-        feet_site_id = [
-            mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, f)
-            for f in feet_site
-        ]
-        assert not any(id_ == -1 for id_ in feet_site_id), 'Site not found.'
-        self._feet_site_id = np.array(feet_site_id)
-
-        lower_leg_body = [
-            'lower_leg_front_left',
-            'lower_leg_hind_left',
-            'lower_leg_front_right',
-            'lower_leg_hind_right',
-        ]
-
-        lower_leg_body_id = [
-            mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, l)
-            for l in lower_leg_body
-        ]
-
-        assert not any(id_ == -1 for id_ in lower_leg_body_id), 'Body not found.'
-
-        self._lower_leg_body_id = np.array(lower_leg_body_id)
         self._foot_radius = 0.0175
         self._nv = sys.nv
 
@@ -144,7 +113,7 @@ class QuadEnv(PipelineEnv):
         new_cmd = jp.array([lin_vel_x[0], lin_vel_y[0], ang_vel_yaw[0]])
         return new_cmd
 
-    def reset(self, rng: jax.Array) -> State:  # pytype: disable=signature-mismatch
+    def reset(self, rng: jax.Array) -> State:
         rng, key = jax.random.split(rng)
 
         pipeline_state = self.pipeline_init(self.init_q, jp.zeros(self._nv))
@@ -156,7 +125,7 @@ class QuadEnv(PipelineEnv):
             'command': self.sample_command(key),
             'last_contact': jp.zeros(4, dtype=bool),
             'feet_air_time': jp.zeros(4),
-            'rewards': {k: 0.0 for k in self.reward_config.rewards.scales.keys()},
+            'rewards': {k: 0.0 for k in self.reward_config.keys()},
             'kick': jp.array([0.0, 0.0]),
             'step': 0,
         }
@@ -167,10 +136,10 @@ class QuadEnv(PipelineEnv):
         metrics = {'total_dist': 0.0}
         for k in state_info['rewards']:
             metrics[k] = state_info['rewards'][k]
-        state = State(pipeline_state, obs, reward, done, metrics, state_info)  # pytype: disable=wrong-arg-types
+        state = State(pipeline_state, obs, reward, done, metrics, state_info)
         return state
 
-    def step(self, state: State, action: jax.Array) -> State:  # pytype: disable=signature-mismatch
+    def step(self, state: State, action: jax.Array) -> State:
         rng, cmd_rng, kick_noise_2 = jax.random.split(state.info['rng'], 3)
 
         # kick
@@ -193,14 +162,14 @@ class QuadEnv(PipelineEnv):
         joint_angles = pipeline_state.q[7:]
         joint_vel = pipeline_state.qd[6:]
 
-        # foot contact data based on z-position
-        foot_pos = pipeline_state.site_xpos[self._feet_site_id]  # pytype: disable=attribute-error
-        foot_contact_z = foot_pos[:, 2] - self._foot_radius
-        contact = foot_contact_z < 1e-3  # a mm or less off the floor
-        contact_filt_mm = contact | state.info['last_contact']
-        contact_filt_cm = (foot_contact_z < 3e-2) | state.info['last_contact']
-        first_contact = (state.info['feet_air_time'] > 0) * contact_filt_mm
-        state.info['feet_air_time'] += self.dt
+        # # foot contact data based on z-position
+        # foot_pos = pipeline_state.site_xpos[self._feet_site_id]
+        # foot_contact_z = foot_pos[:, 2] - self._foot_radius
+        # contact = foot_contact_z < 1e-3  # a mm or less off the floor
+        # contact_filt_mm = contact | state.info['last_contact']
+        # contact_filt_cm = (foot_contact_z < 3e-2) | state.info['last_contact']
+        # first_contact = (state.info['feet_air_time'] > 0) * contact_filt_mm
+        # state.info['feet_air_time'] += self.dt
 
         # done if joint limits are reached or robot is falling
         up = jp.array([0.0, 0.0, 1.0])
@@ -220,21 +189,21 @@ class QuadEnv(PipelineEnv):
             'lin_vel_z': self._reward_lin_vel_z(xd),
             'ang_vel_xy': self._reward_ang_vel_xy(xd),
             'orientation': self._reward_orientation(x),
-            'torques': self._reward_torques(pipeline_state.qfrc_actuator),  # pytype: disable=attribute-error
+            'torques': self._reward_torques(pipeline_state.qfrc_actuator),
             'action_rate': self._reward_action_rate(action, state.info['last_act']),
             'stand_still': self._reward_stand_still(
                 state.info['command'], joint_angles,
             ),
-            'feet_air_time': self._reward_feet_air_time(
-                state.info['feet_air_time'],
-                first_contact,
-                state.info['command'],
-            ),
-            'foot_slip': self._reward_foot_slip(pipeline_state, contact_filt_cm),
+            # 'feet_air_time': self._reward_feet_air_time(
+            #     state.info['feet_air_time'],
+            #     first_contact,
+            #     state.info['command'],
+            # ),
+            # 'foot_slip': self._reward_foot_slip(pipeline_state, contact_filt_cm),
             'termination': self._reward_termination(done, state.info['step']),
         }
         rewards = {
-            k: v * self.reward_config.rewards.scales[k] for k, v in rewards.items()
+            k: v * self.reward_config[k] for k, v in rewards.items()
         }
         reward = jp.clip(sum(rewards.values()) * self.dt, 0.0, 10000.0)
 
@@ -242,8 +211,8 @@ class QuadEnv(PipelineEnv):
         state.info['kick'] = kick
         state.info['last_act'] = action
         state.info['last_vel'] = joint_vel
-        state.info['feet_air_time'] *= ~contact_filt_mm
-        state.info['last_contact'] = contact
+        # state.info['feet_air_time'] *= ~contact_filt_mm
+        # state.info['last_contact'] = contact
         state.info['rewards'] = rewards
         state.info['step'] += 1
         state.info['rng'] = rng
@@ -295,7 +264,7 @@ class QuadEnv(PipelineEnv):
 
         return obs
 
-  # ------------ reward functions----------------
+# ------------ reward functions----------------
     def _reward_lin_vel_z(self, xd: Motion) -> jax.Array:
         # Penalize z axis base linear velocity
         return jp.square(xd.vel[0, 2])
@@ -327,21 +296,23 @@ class QuadEnv(PipelineEnv):
         local_vel = math.rotate(xd.vel[0], math.quat_inv(x.rot[0]))
         lin_vel_error = jp.sum(jp.square(commands[:2] - local_vel[:2]))
         lin_vel_reward = jp.exp(
-            -lin_vel_error / self.reward_config.rewards.tracking_sigma
+            -lin_vel_error / self.reward_config['tracking_sigma']
         )
         return lin_vel_reward
+
+# Tracking of angular velocity commands (yaw)
 
     def _reward_tracking_ang_vel(
         self, commands: jax.Array, x: Transform, xd: Motion
     ) -> jax.Array:
-    # Tracking of angular velocity commands (yaw)
+
         base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
         ang_vel_error = jp.square(commands[2] - base_ang_vel[2])
-        return jp.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
+        return jp.exp(-ang_vel_error / self.reward_config['tracking_sigma'])
 
     def _reward_feet_air_time(
         self, air_time: jax.Array, first_contact: jax.Array, commands: jax.Array
-        ) -> jax.Array:
+    ) -> jax.Array:
         # Reward air time.
         rew_air_time = jp.sum((air_time - 0.1) * first_contact)
         rew_air_time *= (
@@ -349,30 +320,28 @@ class QuadEnv(PipelineEnv):
         )  # no reward for zero command
         return rew_air_time
 
+    # Penalize motion at zero commands
     def _reward_stand_still(
         self,
         commands: jax.Array,
         joint_angles: jax.Array,
     ) -> jax.Array:
-    # Penalize motion at zero commands
         return jp.sum(jp.abs(joint_angles - self.default_pose)) * (
             math.normalize(commands[:2])[1] < 0.1
         )
 
-    def _reward_foot_slip(
-        self, pipeline_state: base.State, contact_filt: jax.Array
-    ) -> jax.Array:
-        # get velocities at feet which are offset from lower legs
-        # pytype: disable=attribute-error
-        pos = pipeline_state.site_xpos[self._feet_site_id]  # feet position
-        feet_offset = pos - pipeline_state.xpos[self._lower_leg_body_id]
-        # pytype: enable=attribute-error
-        offset = base.Transform.create(pos=feet_offset)
-        foot_indices = self._lower_leg_body_id - 1  # we got rid of the world body
-        foot_vel = offset.vmap().do(pipeline_state.xd.take(foot_indices)).vel
+    # def _reward_foot_slip(
+    #     self, pipeline_state: base.State, contact_filt: jax.Array
+    # ) -> jax.Array:
+    #     # get velocities at feet which are offset from lower legs
+    #     pos = pipeline_state.site_xpos[self._feet_site_id]  # feet position
+    #     feet_offset = pos - pipeline_state.xpos[self._lower_leg_body_id]
+    #     offset = base.Transform.create(pos=feet_offset)
+    #     foot_indices = self._lower_leg_body_id - 1  # we got rid of the world body
+    #     foot_vel = offset.vmap().do(pipeline_state.xd.take(foot_indices)).vel
 
-        # Penalize large feet velocity for feet that are in contact with the ground.
-        return jp.sum(jp.square(foot_vel[:, :2]) * contact_filt.reshape((-1, 1)))
+    #     # Penalize large feet velocity for feet that are in contact with the ground.
+    #     return jp.sum(jp.square(foot_vel[:, :2]) * contact_filt.reshape((-1, 1)))
 
     def _reward_termination(self, done: jax.Array, step: jax.Array) -> jax.Array:
         return done & (step < 500)
@@ -383,5 +352,3 @@ class QuadEnv(PipelineEnv):
     ) -> Sequence[np.ndarray]:
         camera = camera or 'track'
         return super().render(trajectory, camera=camera, width=width, height=height)
-
-envs.register_environment('barkour', BarkourEnv)

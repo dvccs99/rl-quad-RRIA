@@ -8,10 +8,11 @@ authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
 python = "^3.10"
 gymnasium = "^1.0.0"
 mediapy = "^1.2.2"
-jax = "^0.4.35"
 flax = "^0.10.2"
 mujoco = "^3.2.5"
 brax = "^0.11.0"
+wandb = "^0.18.7"
+jax = {extras = ["cuda12"], version = "^0.4.35"}
 
 [tool.poetry.dev-dependencies]
 
