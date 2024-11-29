@@ -71,29 +71,29 @@ class QuadEnv(PipelineEnv):
         **kwargs,
     ):
         ROBOT_SCENE_PATH = Path('rl-quad-rria', 'robots', robot_name, 'scene_mjx.xml')
-        sys = mjcf.load(ROBOT_SCENE_PATH)
+        self.sys = mjcf.load(ROBOT_SCENE_PATH)
         self._dt = 0.02  # this environment is 50 fps
-        sys = sys.tree_replace({'opt.timestep': 0.004})
+        self.sys = self.sys.tree_replace({'opt.timestep': 0.004})
 
-        n_frames = kwargs.pop('n_frames', int(self._dt / sys.opt.timestep))
-        super().__init__(sys, backend='mjx', n_frames=n_frames)
+        n_frames = kwargs.pop('n_frames', int(self._dt / self.sys.opt.timestep))
+        super().__init__(self.sys, backend='mjx', n_frames=n_frames)
 
         self.reward_config = get_config()
         self._torso_idx = mujoco.mj_name2id(
-                          sys.mj_model,
+                          self.sys.mj_model,
                           mujoco.mjtObj.mjOBJ_BODY.value,
                           'torso'
                         )
         self.action_scale = action_scale
         self.obs_noise = obs_noise
         self.kick_vel = kick_vel
-        self.init_q = jp.array(sys.mj_model.keyframe('standing').qpos)
-        self.default_pose = sys.mj_model.keyframe('standing').qpos[7:]
+        self.init_q = jp.array(self.sys.mj_model.keyframe('standing').qpos)
+        self.default_pose = self.sys.mj_model.keyframe('standing').qpos[7:]
         self.lowers = jp.array([-0.7, -1.0, 0.05] * 4)
         self.uppers = jp.array([0.52, 2.1, 2.1] * 4)
 
         self._foot_radius = 0.0175
-        self._nv = sys.nv
+        self._nv = self.sys.nv
 
     def sample_command(self, rng: jax.Array) -> jax.Array:
         lin_vel_x = [-0.6, 1.5]  # min max [m/s]
