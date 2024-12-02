@@ -1,0 +1,42 @@
+{
+  "os": "Linux-6.8.0-49-generic-x86_64-with-glibc2.35",
+  "python": "3.10.12",
+  "startedAt": "2024-12-02T17:05:08.762591Z",
+  "program": "/home/dvccs/dev/rl-quad-RRIA/run_experiments.py",
+  "codePath": "run_experiments.py",
+  "git": {
+    "remote": "git@github.com:dvccs99/rl-quad-RRIA.git",
+    "commit": "c6dc7f9431c22c7485171fc8a64721a1d9fa79f0"
+  },
+  "root": "/home/dvccs/dev/rl-quad-RRIA",
+  "host": "pc040-ubu",
+  "username": "dvccs",
+  "executable": "/home/dvccs/.cache/pypoetry/virtualenvs/rl-quad-rria-ZTvcUpMt-py3.10/bin/python",
+  "codePathLocal": "run_experiments.py",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "gpu": "NVIDIA GeForce MX450",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "231089967104",
+      "used": "145475031040"
+    }
+  },
+  "memory": {
+    "total": "16454610944"
+  },
+  "cpu": {
+    "count": 4,
+    "countLogical": 8
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce MX450",
+      "memoryTotal": "2147483648",
+      "cudaCores": 896,
+      "architecture": "Turing"
+    }
+  ],
+  "cudaVersion": "12.2"
+}

@@ -1,0 +1,36 @@
+diff --git a/run_experiments.py b/run_experiments.py
+index 84bf652..3214484 100644
+--- a/run_experiments.py
++++ b/run_experiments.py
+@@ -4,8 +4,8 @@ from wandb.integration.sb3 import WandbCallback
+ from stable_baselines3.common.monitor import Monitor
+ import wandb
+ 
+-NUM_EPISODES = 100
+-NUM_TIME_STEPS = 50000
++NUM_EPISODES = 10
++NUM_TIME_STEPS = 5000
+ GRADIENT_SAVE_FREQ = 100
+ 
+ ENV_PARAMETERS = {
+@@ -55,15 +55,15 @@ def training_initialization(algorithm_model):
+     Returns:
+         _type_: _description_
+     """
+-    env_name = algorithm_model.__name__
+-    env, run = env_initialization(env_name)
+-
++    algorithm_name = algorithm_model.__name__
++    env, run = env_initialization(algorithm_name)
++    # device = "cpu" if algorithm_name == "PPO" else "cuda"
+     model = algorithm_model(
+         "MlpPolicy",
+         env,
+-        device="cuda",
++        device='cuda',
+         verbose=1,
+-        tensorboard_log=f"runs/{env_name}"
++        tensorboard_log=f"runs/{algorithm_name}"
+     )
+ 
+     vec_env = model.get_env()
