@@ -19,9 +19,8 @@ jit_step = jax.jit(env.step)
 state = jit_reset(jax.random.PRNGKey(0))
 rollout = [state.pipeline_state]
 
-for i in range(10):
+for i in range(1000):
     ctrl = -0.1 * jp.ones(env.sys.nu)
     state = jit_step(state, ctrl)
     rollout.append(state.pipeline_state)
-img = image.render(env.sys, rollout, camera='track', fmt='png')
-plt.imshow(img)
+env.render(trajectory=rollout)
