@@ -10,6 +10,7 @@ class QuadEnv(MujocoEnv):
 
     def __init__(self, env_parameters, mujoco_parameters):
         self.HEALTHY_REWARD_WEIGHT = env_parameters["HEALTHY_REWARD_WEIGHT"]
+        self.TRACKING_REWARD_WEIGHT = env_parameters["TRACKING_REWARD_WEIGHT"]
         self.RESET_NOISE_SCALE = env_parameters["RESET_NOISE_SCALE"]
         self.FORWARD_REWARD_WEIGHT = env_parameters["FORWARD_REWARD_WEIGHT"]
         self.CONTROL_COST_WEIGHT = env_parameters["CONTROL_COST_WEIGHT"]
@@ -141,6 +142,8 @@ class QuadEnv(MujocoEnv):
         xy_velocity = (xy_position_after - xy_position_before) / self.dt
         x_velocity, y_velocity = xy_velocity
 
+        # TODO: PASSAR A VELOCIDADE ANGULAR PARA GET_REW
+
         observation = self.__get_obs()
         reward, reward_info = self.__get_rew(x_velocity, action)
         terminated = not self.is_healthy
@@ -218,3 +221,53 @@ class QuadEnv(MujocoEnv):
         self.set_state(qpos, qvel)
         observation = self.__get_obs()
         return observation
+
+    def sample_command(self) -> np.array:
+        """
+
+
+        Returns:
+            np.array: _description_
+        """
+        MAX_LINEAR_SPEED = 1
+        MAX_ANGULAR_SPEED = 0.5
+
+        rng = np.random.default_rng(seed=3141592)
+
+        lin_vel_x, lin_vel_y = rng.uniform(low=-MAX_LINEAR_SPEED,
+                                           high=MAX_LINEAR_SPEED,
+                                           size=2)
+
+        ang_vel_yaw = rng.uniform(low=-MAX_ANGULAR_SPEED,
+                                  high=MAX_ANGULAR_SPEED)
+
+        cmd = np.array([lin_vel_x, lin_vel_y, ang_vel_yaw])
+        return cmd
+
+    def reward_tracking_lin_vel(
+        self,
+        commands: np.array,
+        x_velocity,
+        y_velocity
+            ) -> np.array:
+
+        distribution_sigma = self.TRACKING_REWARD_WEIGHT
+
+        current_vel = np.array([x_velocity, y_velocity])
+        vel_command = np.array([commands[0], commands[1]])
+
+        lin_vel_error = np.sum(np.square(vel_command - current_vel))
+        lin_vel_reward = np.exp(-lin_vel_error / distribution_sigma)
+
+        return lin_vel_reward
+
+    def reward_tracking_ang_vel(
+        self,
+        commands: np.array,
+        x: Transform,
+        xd: Motion
+            ) -> np.Array:
+        # Tracking of angular velocity commands (yaw)
+        base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
+        ang_vel_error = np.square(commands[2] - base_ang_vel[2])
+        return np.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
