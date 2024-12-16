@@ -4,13 +4,13 @@ from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.monitor import Monitor
 import wandb
 
-NUM_EPISODES = 10
-NUM_TIME_STEPS = 5000
+NUM_EPISODES = 10000
+NUM_TIME_STEPS = 5000000
 GRADIENT_SAVE_FREQ = 100
 
 ENV_PARAMETERS = {
     'FORWARD_REWARD_WEIGHT': 1,
-    'TRACKING_REWARD_WEIGHT': 0.05,
+    'TRACKING_REWARD_WEIGHT': 0.5,
     'CONTROL_COST_WEIGHT': 0.05,
     'CONTACT_COST_WEIGHT': 5e-4,
     'HEALTHY_REWARD_WEIGHT': 1,
@@ -85,7 +85,6 @@ def train(model, vec_env, run, obs):
     for _ in range(NUM_EPISODES):
         action, _state = model.predict(obs, deterministic=True)
         obs, reward, done, info = vec_env.step(action)
-        vec_env.render('human')
 
 
 if __name__ == "__main__":
