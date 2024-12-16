@@ -18,4 +18,4 @@ RUN apt update && apt install -y python3-pip build-essential
 
 RUN git clone https://github.com/dvccs99/rl-quad-RRIA.git
 
-
+RUN pip install poetry
