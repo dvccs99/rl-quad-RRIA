@@ -204,7 +204,6 @@ class QuadEnv(MujocoEnv):
         velocity = self.data.qvel.flatten()
         contact_force = self.contact_forces[1:].flatten()
         obs = np.concatenate((position, velocity, contact_force))
-        print(obs.shape)
         return obs
 
     def reset_model(self) -> np.ndarray:

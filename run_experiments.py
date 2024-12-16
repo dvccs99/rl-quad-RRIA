@@ -23,7 +23,7 @@ ENV_PARAMETERS = {
 MUJOCO_PARAMETERS = {
     'frame_skip': 50,
     'observation_space': None,
-    'render_mode': 'human'
+    'render_mode': 'None'
 }
 
 
@@ -89,7 +89,7 @@ def train(model, vec_env, run, obs):
 
 
 if __name__ == "__main__":
-    algorithms_list = [PPO, SAC, DDPG]
+    algorithms_list = [SAC, PPO, DDPG]
     for algorithm in algorithms_list:
         model, vec_env, run, obs = training_initialization(algorithm)
         train(model, vec_env, run, obs)
