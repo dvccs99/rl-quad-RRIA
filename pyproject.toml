@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "rl-quad-rria"
 version = "0.1.0"
-description = "Environment for development of RL-based controller for simulated Spot Robot"
+description = "Environment for development of RL-based controller for simulated Anymal C Robot"
 authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
 
 [tool.poetry.dependencies]
