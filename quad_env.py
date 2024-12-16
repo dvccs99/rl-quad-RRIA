@@ -199,7 +199,9 @@ class QuadEnv(MujocoEnv):
         position = position[2:]
         velocity = self.data.qvel.flatten()
         contact_force = self.contact_forces[1:].flatten()
-        return np.concatenate((position, velocity, contact_force))
+        obs = np.concatenate((position, velocity, contact_force))
+        print(obs.shape)
+        return obs
 
     def reset_model(self) -> np.ndarray:
         """
@@ -261,13 +263,13 @@ class QuadEnv(MujocoEnv):
 
         return lin_vel_reward
 
-    def reward_tracking_ang_vel(
-        self,
-        commands: np.array,
-        x: Transform,
-        xd: Motion
-            ) -> np.Array:
-        # Tracking of angular velocity commands (yaw)
-        base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
-        ang_vel_error = np.square(commands[2] - base_ang_vel[2])
-        return np.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
+    # def reward_tracking_ang_vel(
+    #     self,
+    #     commands: np.array,
+    #     x: Transform,
+    #     xd: Motion
+    #         ) -> np.Array:
+    #     # Tracking of angular velocity commands (yaw)
+    #     base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
+    #     ang_vel_error = np.square(commands[2] - base_ang_vel[2])
+    #     return np.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
