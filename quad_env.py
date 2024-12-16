@@ -145,7 +145,7 @@ class QuadEnv(MujocoEnv):
         # TODO: PASSAR A VELOCIDADE ANGULAR PARA GET_REW
 
         observation = self.__get_obs()
-        reward, reward_info = self.__get_rew(x_velocity, action)
+        reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
         terminated = not self.is_healthy
         truncated = False
         info = {
@@ -161,7 +161,7 @@ class QuadEnv(MujocoEnv):
             self.render()
         return observation, reward, terminated, truncated, info
 
-    def __get_rew(self, x_velocity: float, action) -> tuple:
+    def __get_rew(self, x_velocity: float, y_velocity: float, action) -> tuple:
         """_summary_
 
         Args:
@@ -173,7 +173,11 @@ class QuadEnv(MujocoEnv):
         """
         forward_reward = x_velocity * self.FORWARD_REWARD_WEIGHT
         healthy_reward = self.healthy_reward
-        rewards = forward_reward + healthy_reward
+        vel_reward = self.reward_tracking_lin_vel(commands=action,
+                                                  x_velocity=x_velocity,
+                                                  y_velocity=y_velocity)
+
+        rewards = forward_reward + healthy_reward + vel_reward
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
@@ -263,13 +267,5 @@ class QuadEnv(MujocoEnv):
 
         return lin_vel_reward
 
-    # def reward_tracking_ang_vel(
-    #     self,
-    #     commands: np.array,
-    #     x: Transform,
-    #     xd: Motion
-    #         ) -> np.Array:
-    #     # Tracking of angular velocity commands (yaw)
-    #     base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
-    #     ang_vel_error = np.square(commands[2] - base_ang_vel[2])
-    #     return np.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
+
+    # TODO implementar reward pra velocidade angular usando cvel

@@ -3,6 +3,7 @@ name = "rl-quad-rria"
 version = "0.1.0"
 description = "Environment for development of RL-based controller for simulated Spot Robot"
 authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
