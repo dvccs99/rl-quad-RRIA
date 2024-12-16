@@ -38,6 +38,7 @@ def env_initialization(model_name):
 
     env = QuadEnv(ENV_PARAMETERS, MUJOCO_PARAMETERS)
     env = Monitor(env)
+    wandb.login(key="3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec")
     run = wandb.init(name=model_name,
                      project="Quad_Mujoco",
                      sync_tensorboard=True,
