@@ -173,21 +173,21 @@ class QuadEnv(MujocoEnv):
         """
         forward_reward = x_velocity * self.FORWARD_REWARD_WEIGHT
         healthy_reward = self.healthy_reward
-        vel_reward = self.reward_tracking_lin_vel(commands=action,
-                                                  x_velocity=x_velocity,
-                                                  y_velocity=y_velocity)
+        # vel_reward = self.reward_tracking_lin_vel(commands=action,
+        #                                           x_velocity=x_velocity,
+        #                                           y_velocity=y_velocity)
 
-        rewards = forward_reward + healthy_reward + vel_reward
+        rewards = forward_reward + healthy_reward
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
-        costs = ctrl_cost + contact_cost
+        costs = ctrl_cost
 
         reward = rewards - costs
 
         reward_info = {"reward_forward": forward_reward,
                        "reward_ctrl": -ctrl_cost,
-                       "reward_contact": -contact_cost,
+                       "reward_contact": 0,
                        "reward_survive": healthy_reward}
 
         return reward, reward_info

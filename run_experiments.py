@@ -5,11 +5,11 @@ from stable_baselines3.common.monitor import Monitor
 import wandb
 
 NUM_EPISODES = 10000
-NUM_TIME_STEPS = 5000000
-GRADIENT_SAVE_FREQ = 100
+NUM_TIME_STEPS = 1000000
+GRADIENT_SAVE_FREQ = 500
 
 ENV_PARAMETERS = {
-    'FORWARD_REWARD_WEIGHT': 1,
+    'FORWARD_REWARD_WEIGHT': 1.0,
     'TRACKING_REWARD_WEIGHT': 0.5,
     'CONTROL_COST_WEIGHT': 0.05,
     'CONTACT_COST_WEIGHT': 5e-4,
@@ -49,7 +49,7 @@ def env_initialization(model_name):
 
 def training_initialization(algorithm_model):
     """
-    
+
 
     Args:
         algorithm_model (_type_): _description_
@@ -76,7 +76,7 @@ def training_initialization(algorithm_model):
         callback=WandbCallback(
             verbose=1,
             gradient_save_freq=GRADIENT_SAVE_FREQ,
-            model_save_path=f'models/{algorithm_model.__name__}'
+            model_save_path=f'training_outputs/{algorithm_model.__name__}'
         ))
 
     return model, vec_env, run, obs

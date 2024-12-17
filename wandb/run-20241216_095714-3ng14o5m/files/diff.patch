@@ -1,0 +1,35 @@
+diff --git a/.gitignore b/.gitignore
+index ad4a1f1..3d3b7f2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -163,9 +163,6 @@ cython_debug/
+ #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+ #.idea/
+ 
+-### Python Patch ###
+-# Poetry local configuration file - https://python-poetry.org/docs/configuration/#local-configuration
+-poetry.toml
+ 
+ # ruff
+ .ruff_cache/
+diff --git a/runs/DDPG/DDPG_1/events.out.tfevents.1733158002.pc040-ubu.150329.2 b/runs/DDPG/DDPG_1/events.out.tfevents.1733158002.pc040-ubu.150329.2
+deleted file mode 100644
+index 2fe2b14..0000000
+Binary files a/runs/DDPG/DDPG_1/events.out.tfevents.1733158002.pc040-ubu.150329.2 and /dev/null differ
+diff --git a/runs/PPO/PPO_1/events.out.tfevents.1733157734.pc040-ubu.150329.0 b/runs/PPO/PPO_1/events.out.tfevents.1733157734.pc040-ubu.150329.0
+deleted file mode 100644
+index 3200e12..0000000
+Binary files a/runs/PPO/PPO_1/events.out.tfevents.1733157734.pc040-ubu.150329.0 and /dev/null differ
+diff --git a/runs/SAC/SAC_1/events.out.tfevents.1733157909.pc040-ubu.150329.1 b/runs/SAC/SAC_1/events.out.tfevents.1733157909.pc040-ubu.150329.1
+deleted file mode 100644
+index 67f70f3..0000000
+Binary files a/runs/SAC/SAC_1/events.out.tfevents.1733157909.pc040-ubu.150329.1 and /dev/null differ
+diff --git a/wandb/latest-run b/wandb/latest-run
+index 3016979..1c7407f 120000
+--- a/wandb/latest-run
++++ b/wandb/latest-run
+@@ -1 +1 @@
+-run-20241202_140508-rvzrzj9r
+\ No newline at end of file
++run-20241216_095714-3ng14o5m
+\ No newline at end of file

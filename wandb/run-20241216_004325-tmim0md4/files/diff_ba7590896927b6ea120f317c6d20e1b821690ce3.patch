@@ -1,0 +1,86 @@
+diff --git a/quad_env.py b/quad_env.py
+index 18d32c3..408ff15 100644
+--- a/quad_env.py
++++ b/quad_env.py
+@@ -199,7 +199,9 @@ class QuadEnv(MujocoEnv):
+         position = position[2:]
+         velocity = self.data.qvel.flatten()
+         contact_force = self.contact_forces[1:].flatten()
+-        return np.concatenate((position, velocity, contact_force))
++        obs = np.concatenate((position, velocity, contact_force))
++        print(obs.shape)
++        return obs
+ 
+     def reset_model(self) -> np.ndarray:
+         """
+@@ -261,13 +263,13 @@ class QuadEnv(MujocoEnv):
+ 
+         return lin_vel_reward
+ 
+-    def reward_tracking_ang_vel(
+-        self,
+-        commands: np.array,
+-        x: Transform,
+-        xd: Motion
+-            ) -> np.Array:
+-        # Tracking of angular velocity commands (yaw)
+-        base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
+-        ang_vel_error = np.square(commands[2] - base_ang_vel[2])
+-        return np.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
+\ No newline at end of file
++    # def reward_tracking_ang_vel(
++    #     self,
++    #     commands: np.array,
++    #     x: Transform,
++    #     xd: Motion
++    #         ) -> np.Array:
++    #     # Tracking of angular velocity commands (yaw)
++    #     base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
++    #     ang_vel_error = np.square(commands[2] - base_ang_vel[2])
++    #     return np.exp(-ang_vel_error / self.reward_config.rewards.tracking_sigma)
+\ No newline at end of file
+diff --git a/run_experiments.py b/run_experiments.py
+index 493e217..9da31ab 100644
+--- a/run_experiments.py
++++ b/run_experiments.py
+@@ -10,6 +10,7 @@ GRADIENT_SAVE_FREQ = 100
+ 
+ ENV_PARAMETERS = {
+     'FORWARD_REWARD_WEIGHT': 1,
++    'TRACKING_REWARD_WEIGHT': 0.05,
+     'CONTROL_COST_WEIGHT': 0.05,
+     'CONTACT_COST_WEIGHT': 5e-4,
+     'HEALTHY_REWARD_WEIGHT': 1,
+diff --git a/simulate_environment.py b/simulate_environment.py
+index 9f52820..4e85967 100644
+--- a/simulate_environment.py
++++ b/simulate_environment.py
+@@ -23,18 +23,14 @@ import mujoco.viewer
+ from stable_baselines3 import SAC
+ import numpy as np
+ 
+-# Load the trained Stable Baselines 3 SAC model
+ rl_model = SAC.load("model.zip", print_system_info=True)
+ 
+-# Path to your MuJoCo XML file
+ xml_path = "robot/anybotics_anymal_c/scene.xml"
+ 
+-# Load the MuJoCo model and create the simulation
+ mujoco_model = mujoco.MjModel.from_xml_path(xml_path)
+ data = mujoco.MjData(mujoco_model)
+ 
+-# Launch the viewer and run the simulation
+-with mujoco.viewer.launch(mujoco_model, data) as viewer:
++with mujoco.viewer.launch_passive(mujoco_model, data) as viewer:
+     while viewer.is_running():
+         obs = np.concatenate([data.qpos, data.qvel])
+         action, _states = rl_model.predict(obs, deterministic=True)
+diff --git a/wandb/latest-run b/wandb/latest-run
+index 3016979..10548ab 120000
+--- a/wandb/latest-run
++++ b/wandb/latest-run
+@@ -1 +1 @@
+-run-20241202_140508-rvzrzj9r
+\ No newline at end of file
++run-20241216_004325-tmim0md4
+\ No newline at end of file
