@@ -3,11 +3,11 @@ import mujoco.viewer
 from stable_baselines3 import PPO, SAC, DDPG
 import numpy as np
 
-ppo = PPO.load("models/PPO/v0/model.zip")
-sac = SAC.load("models/SAC/v0/model.zip")
+ppo = PPO.load("models/PPO/v1/model.zip")
+sac = SAC.load("models/SAC/v1/model.zip")
 ddpg = DDPG.load("models/DDPG/v0/model.zip")
 
-algorithm = ppo
+algorithm = sac
 
 xml_path = "robot/anybotics_anymal_c/scene.xml"
 
