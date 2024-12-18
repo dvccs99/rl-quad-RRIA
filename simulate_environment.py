@@ -2,13 +2,12 @@ import mujoco
 import mujoco.viewer
 from stable_baselines3 import PPO, SAC, DDPG
 import numpy as np
-from gymnasium.wrappers import TimeLimit
 
 ppo = PPO.load("models/PPO/v2/model.zip")
-sac = SAC.load("models/SAC/v2/model.zip")
-ddpg = DDPG.load("models/DDPG/v2/model.zip")
+sac = SAC.load("models/SAC/v3/model.zip")
+ddpg = DDPG.load("models/DDPG/v3/model.zip")
 
-algorithm = sac
+algorithm = ddpg
 
 xml_path = "robot/anybotics_anymal_c/scene.xml"
 
