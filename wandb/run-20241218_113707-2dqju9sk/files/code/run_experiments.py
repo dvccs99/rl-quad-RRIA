@@ -23,9 +23,9 @@ ENV_PARAMETERS = {
 }
 
 MUJOCO_PARAMETERS = {
-    'frame_skip': 25,
+    'frame_skip': 50,
     'observation_space': None,
-    'render_mode': ''
+    'render_mode': 'human'
 }
 
 
@@ -39,12 +39,13 @@ def env_initialization(model_name):
     """
 
     vec_env = make_vec_env(env_id='rl_quad/quad_env',
-                           n_envs=50,
+                           n_envs=2,
                            env_kwargs={
                             "mujoco_parameters": MUJOCO_PARAMETERS,
                             "env_parameters": ENV_PARAMETERS,
                             "max_episode_steps": 2000,
                            })
+    # vec_env = gym.wrappers.RecordVideo(vec_env, video_folder="videos")
     wandb.login(key="3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec")
     run = wandb.init(name=model_name,
                      project="Quad_Mujoco",

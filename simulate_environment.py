@@ -2,10 +2,11 @@ import mujoco
 import mujoco.viewer
 from stable_baselines3 import PPO, SAC, DDPG
 import numpy as np
+from gymnasium.wrappers import TimeLimit
 
 ppo = PPO.load("models/PPO/v1/model.zip")
 sac = SAC.load("models/SAC/v1/model.zip")
-ddpg = DDPG.load("models/DDPG/v0/model.zip")
+ddpg = DDPG.load("models/DDPG/v1/model.zip")
 
 algorithm = sac
 

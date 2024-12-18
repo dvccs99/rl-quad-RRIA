@@ -1,22 +1,11 @@
 FROM pytorch/pytorch
 
 
-# # nvidia-container-runtime
-# ENV NVIDIA_VISIBLE_DEVICES \
-#     ${NVIDIA_VISIBLE_DEVICES:-all}
-# ENV NVIDIA_DRIVER_CAPABILITIES \
-#     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
-    
-# RUN apt-get update
-
-# # Set environment variable to avoid dialog prompts
-# ENV DEBIAN_FRONTEND=noninteractive
-
-# RUN apt-get update && apt-get install -y git
-# # \
-# RUN apt update && apt install -y python3-pip build-essential
-
 RUN apt-get update && apt-get install -y git
-RUN git clone https://github.com/dvccs99/rl-quad-RRIA.git
 
-RUN pip install poetry
+RUN git clone https://github.com/dvccs99/rl-quad-RRIA.git -b develop_v2
+
+RUN pip install "gymnasium[mujoco]"==1.0.0 tensorboard==2.18.0 wandb==0.19.1 \
+git+https://github.com/DLR-RM/stable-baselines3 
+
+RUN cd ~/Documents/docker-cluster/dvccs && pip install -e .

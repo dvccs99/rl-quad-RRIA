@@ -1,7 +1,6 @@
 import gymnasium as gym
 import rl_quad
 from stable_baselines3 import SAC, PPO, DDPG
-from stable_baselines3.common.env_util import make_vec_env
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.monitor import Monitor
 import wandb
@@ -23,9 +22,9 @@ ENV_PARAMETERS = {
 }
 
 MUJOCO_PARAMETERS = {
-    'frame_skip': 25,
+    'frame_skip': 50,
     'observation_space': None,
-    'render_mode': ''
+    'render_mode': 'None'
 }
 
 
@@ -38,20 +37,17 @@ def env_initialization(model_name):
         _type_: _description_
     """
 
-    vec_env = make_vec_env(env_id='rl_quad/quad_env',
-                           n_envs=50,
-                           env_kwargs={
-                            "mujoco_parameters": MUJOCO_PARAMETERS,
-                            "env_parameters": ENV_PARAMETERS,
-                            "max_episode_steps": 2000,
-                           })
+    env = gym.make('rl_quad/quad_env',
+                   mujoco_parameters=MUJOCO_PARAMETERS,
+                   env_parameters=ENV_PARAMETERS)
+    env = Monitor(env)
     wandb.login(key="3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec")
     run = wandb.init(name=model_name,
                      project="Quad_Mujoco",
                      sync_tensorboard=True,
-                     monitor_gym=False,
+                     monitor_gym=True,
                      save_code=True)
-    return vec_env, run
+    return env, run
 
 
 def training_initialization(algorithm_model):
@@ -65,16 +61,17 @@ def training_initialization(algorithm_model):
         _type_: _description_
     """
     algorithm_name = algorithm_model.__name__
-    vec_env, run = env_initialization(algorithm_name)
+    env, run = env_initialization(algorithm_name)
     device = "cpu" if algorithm_name == "PPO" else "cuda"
     model = algorithm_model(
         "MlpPolicy",
-        vec_env,
+        env,
         device=device,
         verbose=1,
         tensorboard_log=f"runs/{algorithm_name}"
     )
 
+    vec_env = model.get_env()
     obs = vec_env.reset()
 
     model.learn(
@@ -92,7 +89,6 @@ def train(model, vec_env, run, obs):
     for _ in range(NUM_EPISODES):
         action, _state = model.predict(obs, deterministic=True)
         obs, reward, done, info = vec_env.step(action)
-        vec_env.render()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,562 @@
+diff --git a/docker/Dockerfile b/docker/Dockerfile
+index 500a0d1..aa0ba86 100644
+--- a/docker/Dockerfile
++++ b/docker/Dockerfile
+@@ -1,22 +1,11 @@
+ FROM pytorch/pytorch
+ 
+ 
+-# # nvidia-container-runtime
+-# ENV NVIDIA_VISIBLE_DEVICES \
+-#     ${NVIDIA_VISIBLE_DEVICES:-all}
+-# ENV NVIDIA_DRIVER_CAPABILITIES \
+-#     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+-    
+-# RUN apt-get update
+-
+-# # Set environment variable to avoid dialog prompts
+-# ENV DEBIAN_FRONTEND=noninteractive
++RUN apt-get update && apt-get install -y git
+ 
+-# RUN apt-get update && apt-get install -y git
+-# # \
+-# RUN apt update && apt install -y python3-pip build-essential
++RUN git clone https://github.com/dvccs99/rl-quad-RRIA.git -b develop_v2
+ 
+-RUN apt-get update && apt-get install -y git
+-RUN git clone https://github.com/dvccs99/rl-quad-RRIA.git
++RUN pip install "gymnasium[mujoco]"==1.0.0 tensorboard==2.18.0 wandb==0.19.1 \
++git+https://github.com/DLR-RM/stable-baselines3 
+ 
+-RUN pip install poetry
++RUN cd ~/Documents/docker-cluster/dvccs && pip install -e .
+\ No newline at end of file
+diff --git a/poetry.lock b/poetry.lock
+index 1b385d9..617285f 100644
+--- a/poetry.lock
++++ b/poetry.lock
+@@ -156,25 +156,25 @@ typing = ["typing-extensions (>=4.12.2)"]
+ 
+ [[package]]
+ name = "fonttools"
+-version = "4.55.0"
++version = "4.55.3"
+ description = "Tools to manipulate font files"
+ category = "main"
+ optional = false
+ python-versions = ">=3.8"
+ 
+ [package.extras]
+-all = ["fs (>=2.2.0,<3)", "lxml (>=4.0)", "zopfli (>=0.1.4)", "lz4 (>=1.7.4.2)", "pycairo", "matplotlib", "sympy", "skia-pathops (>=0.5.0)", "uharfbuzz (>=0.23.0)", "brotlicffi (>=0.8.0)", "scipy", "brotli (>=1.0.1)", "munkres", "unicodedata2 (>=15.1.0)", "xattr"]
+-graphite = ["lz4 (>=1.7.4.2)"]
+-interpolatable = ["pycairo", "scipy", "munkres"]
++ufo = ["fs (>=2.2.0,<3)"]
+ lxml = ["lxml (>=4.0)"]
+-pathops = ["skia-pathops (>=0.5.0)"]
++woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
++unicode = ["unicodedata2 (>=15.1.0)"]
++graphite = ["lz4 (>=1.7.4.2)"]
++interpolatable = ["scipy", "munkres", "pycairo"]
+ plot = ["matplotlib"]
+-repacker = ["uharfbuzz (>=0.23.0)"]
+ symfont = ["sympy"]
+ type1 = ["xattr"]
+-ufo = ["fs (>=2.2.0,<3)"]
+-unicode = ["unicodedata2 (>=15.1.0)"]
+-woff = ["zopfli (>=0.1.4)", "brotlicffi (>=0.8.0)", "brotli (>=1.0.1)"]
++pathops = ["skia-pathops (>=0.5.0)"]
++repacker = ["uharfbuzz (>=0.23.0)"]
++all = ["fs (>=2.2.0,<3)", "lxml (>=4.0)", "brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)", "unicodedata2 (>=15.1.0)", "lz4 (>=1.7.4.2)", "scipy", "munkres", "pycairo", "matplotlib", "sympy", "xattr", "skia-pathops (>=0.5.0)", "uharfbuzz (>=0.23.0)"]
+ 
+ [[package]]
+ name = "fsspec"
+@@ -390,11 +390,11 @@ python-versions = ">=3.9"
+ 
+ [[package]]
+ name = "matplotlib"
+-version = "3.9.3"
++version = "3.10.0"
+ description = "Python plotting package"
+ category = "main"
+ optional = false
+-python-versions = ">=3.9"
++python-versions = ">=3.10"
+ 
+ [package.dependencies]
+ contourpy = ">=1.0.1"
+@@ -408,7 +408,7 @@ pyparsing = ">=2.3.1"
+ python-dateutil = ">=2.7"
+ 
+ [package.extras]
+-dev = ["meson-python (>=0.13.1)", "numpy (>=1.25)", "pybind11 (>=2.6,!=2.13.3)", "setuptools_scm (>=7)", "setuptools (>=64)"]
++dev = ["meson-python (>=0.13.1,<0.17.0)", "pybind11 (>=2.13.2,!=2.13.3)", "setuptools_scm (>=7)", "setuptools (>=64)"]
+ 
+ [[package]]
+ name = "mpmath"
+@@ -426,7 +426,7 @@ tests = ["pytest (>=4.6)"]
+ 
+ [[package]]
+ name = "mujoco"
+-version = "3.2.5"
++version = "3.2.6"
+ description = "MuJoCo Physics Simulator"
+ category = "main"
+ optional = false
+@@ -460,7 +460,7 @@ test = ["pytest (>=7.2)", "pytest-cov (>=4.0)"]
+ 
+ [[package]]
+ name = "numpy"
+-version = "2.1.3"
++version = "2.2.0"
+ description = "Fundamental package for array computing in Python"
+ category = "main"
+ optional = false
+@@ -658,7 +658,7 @@ type = ["mypy (>=1.11.2)"]
+ 
+ [[package]]
+ name = "protobuf"
+-version = "5.29.0"
++version = "5.29.1"
+ description = ""
+ category = "main"
+ optional = false
+@@ -832,11 +832,11 @@ test = ["pytest"]
+ 
+ [[package]]
+ name = "six"
+-version = "1.16.0"
++version = "1.17.0"
+ description = "Python 2 and 3 compatibility utilities"
+ category = "main"
+ optional = false
+-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
++python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+ 
+ [[package]]
+ name = "smmap"
+@@ -872,7 +872,7 @@ extra = ["opencv-python", "pygame", "tensorboard (>=2.9.1)", "psutil", "tqdm", "
+ type = "git"
+ url = "https://github.com/DLR-RM/stable-baselines3"
+ reference = "master"
+-resolved_reference = "897d01d225b3b922128f555a5626063d32cd382c"
++resolved_reference = "0fd0db0b7b48e30723e01455f8ec2043a88e16a2"
+ 
+ [[package]]
+ name = "sympy"
+@@ -1062,7 +1062,7 @@ type = ["pytest-mypy"]
+ [metadata]
+ lock-version = "1.1"
+ python-versions = "^3.10"
+-content-hash = "a58128122014e3a1fbaf9b87cadb19aaac0d4fe671fd82dfa3aa8f18360ca374"
++content-hash = "019e756fc4c08dba52f4491b8cf27ae1d817306fd4bea7f544a316d82608db52"
+ 
+ [metadata.files]
+ absl-py = []
+diff --git a/pyproject.toml b/pyproject.toml
+index 97c28fa..c6ceb6d 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,18 +1,14 @@
+-[tool.poetry]
+-name = "rl-quad-rria"
+-version = "0.1.0"
+-description = "Environment for development of RL-based controller for simulated Anymal C Robot"
+-authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
+-
+-[tool.poetry.dependencies]
+-python = "^3.10"
+-gymnasium = {extras = ["mujoco"], version = "^1.0.0"}
+-stable-baselines3 = {git = "https://github.com/DLR-RM/stable-baselines3"}
+-tensorboard = "^2.18.0"
+-wandb = "^0.19.1"
++[build-system]
++requires = ["hatchling"]
++build-backend = "hatchling.build"
+ 
+-[tool.poetry.dev-dependencies]
++[tool.hatch.build.targets.wheel]
++packages = ["rl_quad"]
+ 
+-[build-system]
+-requires = ["poetry-core>=1.0.0"]
+-build-backend = "poetry.core.masonry.api"
++[project]
++name = "rl_quad"
++version = "0.0.1"
++dependencies = [
++  "gymnasium",
++  "numpy==2.1.3",
++]
+diff --git a/quad_env.py b/quad_env.py
+deleted file mode 100644
+index b0e8033..0000000
+--- a/quad_env.py
++++ /dev/null
+@@ -1,270 +0,0 @@
+-from typing import Union
+-import numpy as np
+-from gymnasium.envs.mujoco import MujocoEnv
+-from gymnasium.spaces import Box
+-
+-
+-class QuadEnv(MujocoEnv):
+-    """
+-    """
+-
+-    def __init__(self, env_parameters, mujoco_parameters):
+-        self.HEALTHY_REWARD_WEIGHT = env_parameters["HEALTHY_REWARD_WEIGHT"]
+-        self.TRACKING_REWARD_WEIGHT = env_parameters["TRACKING_REWARD_WEIGHT"]
+-        self.RESET_NOISE_SCALE = env_parameters["RESET_NOISE_SCALE"]
+-        self.FORWARD_REWARD_WEIGHT = env_parameters["FORWARD_REWARD_WEIGHT"]
+-        self.CONTROL_COST_WEIGHT = env_parameters["CONTROL_COST_WEIGHT"]
+-        self.CONTACT_COST_WEIGHT = env_parameters["CONTACT_COST_WEIGHT"]
+-        self.CONTACT_FORCE_RANGE = env_parameters["CONTACT_FORCE_RANGE"]
+-        self._main_body: Union[int, str] = 1
+-
+-        self.metadata = {"render_modes": [
+-                         "human",
+-                         "rgb_array",
+-                         "depth_array"]}
+-
+-        MujocoEnv.__init__(self,
+-                           model_path="./robot/anybotics_anymal_c/scene.xml",
+-                           frame_skip=mujoco_parameters['frame_skip'],
+-                           observation_space=None,  # needs to be defined after
+-                           default_camera_config={"distance": 4.0},
+-                           camera_name='track',
+-                           render_mode=mujoco_parameters['render_mode'])
+-
+-        self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
+-
+-        obs_size = self.data.qpos.size + self.data.qvel.size
+-
+-        # TODO: EXCLUDE X AND Y?
+-        obs_size -= 2
+-        obs_size += self.data.cfrc_ext[1:].size
+-
+-        self.observation_space = Box(low=-np.inf,
+-                                     high=np.inf,
+-                                     shape=(obs_size,),
+-                                     dtype=np.float64)
+-
+-    @property
+-    def is_healthy(self) -> bool:
+-        """
+-        Determines if the robot is "healthy", that is, if the values of its
+-        state space are finite and its z coordinate is inside the interval
+-        [MIN_Z, MAX_Z].
+-
+-        Returns:
+-            bool: True if the robot is healthy, False otherwise
+-        """
+-        MIN_Z = 0.2
+-        MAX_Z = 1.0
+-
+-        state = self.state_vector()
+-        is_healthy = np.isfinite(state).all() and MIN_Z <= state[2] <= MAX_Z
+-        return is_healthy
+-
+-    @property
+-    def healthy_reward(self) -> float:
+-        """
+-        Calculates the reward given if the robot is healthy.
+-
+-        Returns:
+-            float: reward value
+-        """
+-        return self.is_healthy * self.HEALTHY_REWARD_WEIGHT
+-
+-    def control_cost(self, action: np.ndarray) -> float:
+-        """
+-        Gives the cost associated to the size of the taken action.
+-
+-        Args:
+-            action (np.ndarray): Torques of all 12 joints.
+-
+-        Returns:
+-            float: control cost
+-        """
+-        control_cost = self.CONTROL_COST_WEIGHT * np.sum(np.square(action))
+-        return control_cost
+-
+-    @property
+-    def contact_forces(self) -> np.ndarray:
+-        """
+-        Returns the external contact forces suffered by the model, clipped by
+-        the minimal contact force and the maximal contact force.
+-
+-        Returns:
+-            np.ndarray: array containing the clipped forces.
+-        """
+-        MIN_CONTACT_FORCE = -1.0
+-        MAX_CONTACT_FORCE = 1.0
+-
+-        raw_contact_forces = self.data.cfrc_ext
+-        contact_forces = np.clip(raw_contact_forces,
+-                                 MIN_CONTACT_FORCE,
+-                                 MAX_CONTACT_FORCE)
+-        return contact_forces
+-
+-    @property
+-    def contact_cost(self) -> float:
+-        """
+-        Cost created by external contact forces.
+-
+-        Returns:
+-            float: cost value
+-        """
+-        contact_forces_value = np.sum(np.square(self.contact_forces))
+-        contact_cost = self.CONTACT_COST_WEIGHT * contact_forces_value
+-        return contact_cost
+-
+-    def step(
+-        self,
+-        action: np.ndarray,
+-            ) -> tuple[np.ndarray, float, bool, bool, dict]:
+-        """
+-
+-
+-        Args:
+-            action (np.ndarray): Torques of all 12 joints
+-
+-        Returns:
+-            tuple[np.ndarray, float, bool, bool, dict]:
+-                - Observation
+-                - Reward
+-                - Terminated
+-                - Truncated: Is set to false as the time limit is handled by
+-                  the `TimeLimit` wrapper added during `make`
+-                - Info
+-
+-        """
+-
+-        xy_position_before = self.data.body(1).xpos[:2].copy()
+-        self.do_simulation(action, self.frame_skip)
+-        xy_position_after = self.data.body(1).xpos[:2].copy()
+-
+-        xy_velocity = (xy_position_after - xy_position_before) / self.dt
+-        x_velocity, y_velocity = xy_velocity
+-
+-        # TODO: PASSAR A VELOCIDADE ANGULAR PARA GET_REW
+-
+-        observation = self.__get_obs()
+-        reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
+-        terminated = not self.is_healthy
+-        truncated = False
+-        info = {
+-            "x_position": self.data.qpos[0],
+-            "y_position": self.data.qpos[1],
+-            "distance_from_origin": np.linalg.norm(self.data.qpos[0:2], ord=2),
+-            "x_velocity": x_velocity,
+-            "y_velocity": y_velocity,
+-            **reward_info,
+-        }
+-
+-        if self.render_mode == "human":
+-            self.render()
+-        return observation, reward, terminated, truncated, info
+-
+-    def __get_rew(self, x_velocity: float, y_velocity: float, action) -> tuple:
+-        """_summary_
+-
+-        Args:
+-            x_velocity (float): _description_
+-            action (_type_): _description_
+-
+-        Returns:
+-            tuple: _description_
+-        """
+-        forward_reward = x_velocity * self.FORWARD_REWARD_WEIGHT
+-        healthy_reward = self.healthy_reward
+-        # vel_reward = self.reward_tracking_lin_vel(commands=action,
+-        #                                           x_velocity=x_velocity,
+-        #                                           y_velocity=y_velocity)
+-
+-        rewards = forward_reward + healthy_reward
+-
+-        ctrl_cost = self.control_cost(action)
+-        contact_cost = self.contact_cost
+-        costs = ctrl_cost
+-
+-        reward = rewards - costs
+-
+-        reward_info = {"reward_forward": forward_reward,
+-                       "reward_ctrl": -ctrl_cost,
+-                       "reward_contact": 0,
+-                       "reward_survive": healthy_reward}
+-
+-        return reward, reward_info
+-
+-    def __get_obs(self) -> np.ndarray:
+-        """
+-        Gymnasium observation function. Needs more detail.
+-
+-        Returns:
+-            np.ndarray: _description_
+-        """
+-        position = self.data.qpos.flatten()
+-        position = position[2:]
+-        velocity = self.data.qvel.flatten()
+-        contact_force = self.contact_forces[1:].flatten()
+-        obs = np.concatenate((position, velocity, contact_force))
+-        return obs
+-
+-    def reset_model(self) -> np.ndarray:
+-        """
+-        Resets the model's joint positions and joint velocities.
+-
+-        Returns:
+-            np.ndarray: observation after reset.
+-        """
+-
+-        noise_low = -self.RESET_NOISE_SCALE
+-        noise_high = self.RESET_NOISE_SCALE
+-
+-        qpos = self.init_qpos + self.np_random.uniform(
+-            low=noise_low, high=noise_high, size=self.model.nq)
+-
+-        qvel_noise = self.np_random.standard_normal(self.model.nv)
+-        qvel = (self.init_qvel + self.RESET_NOISE_SCALE * qvel_noise)
+-
+-        self.set_state(qpos, qvel)
+-        observation = self.__get_obs()
+-        return observation
+-
+-    def sample_command(self) -> np.array:
+-        """
+-
+-
+-        Returns:
+-            np.array: _description_
+-        """
+-        MAX_LINEAR_SPEED = 1
+-        MAX_ANGULAR_SPEED = 0.5
+-
+-        rng = np.random.default_rng(seed=3141592)
+-
+-        lin_vel_x, lin_vel_y = rng.uniform(low=-MAX_LINEAR_SPEED,
+-                                           high=MAX_LINEAR_SPEED,
+-                                           size=2)
+-
+-        ang_vel_yaw = rng.uniform(low=-MAX_ANGULAR_SPEED,
+-                                  high=MAX_ANGULAR_SPEED)
+-
+-        cmd = np.array([lin_vel_x, lin_vel_y, ang_vel_yaw])
+-        return cmd
+-
+-    def reward_tracking_lin_vel(
+-        self,
+-        commands: np.array,
+-        x_velocity,
+-        y_velocity
+-            ) -> np.array:
+-
+-        distribution_sigma = self.TRACKING_REWARD_WEIGHT
+-
+-        current_vel = np.array([x_velocity, y_velocity])
+-        vel_command = np.array([commands[0], commands[1]])
+-
+-        lin_vel_error = np.sum(np.square(vel_command - current_vel))
+-        lin_vel_reward = np.exp(-lin_vel_error / distribution_sigma)
+-
+-        return lin_vel_reward
+-
+-
+-    # TODO implementar reward pra velocidade angular usando cvel
+diff --git a/run_experiments.py b/run_experiments.py
+index 679525b..3f60b55 100644
+--- a/run_experiments.py
++++ b/run_experiments.py
+@@ -1,5 +1,7 @@
+-from quad_env import QuadEnv
++import gymnasium as gym
++import rl_quad
+ from stable_baselines3 import SAC, PPO, DDPG
++from stable_baselines3.common.env_util import make_vec_env
+ from wandb.integration.sb3 import WandbCallback
+ from stable_baselines3.common.monitor import Monitor
+ import wandb
+@@ -23,7 +25,7 @@ ENV_PARAMETERS = {
+ MUJOCO_PARAMETERS = {
+     'frame_skip': 50,
+     'observation_space': None,
+-    'render_mode': 'None'
++    'render_mode': 'human'
+ }
+ 
+ 
+@@ -36,15 +38,21 @@ def env_initialization(model_name):
+         _type_: _description_
+     """
+ 
+-    env = QuadEnv(ENV_PARAMETERS, MUJOCO_PARAMETERS)
+-    env = Monitor(env)
++    vec_env = make_vec_env(env_id='rl_quad/quad_env',
++                           n_envs=2,
++                           env_kwargs={
++                            "mujoco_parameters": MUJOCO_PARAMETERS,
++                            "env_parameters": ENV_PARAMETERS,
++                            "max_episode_steps": 2000,
++                           })
++    # env = Monitor(vec_env)
+     wandb.login(key="3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec")
+     run = wandb.init(name=model_name,
+                      project="Quad_Mujoco",
+                      sync_tensorboard=True,
+-                     monitor_gym=True,
++                     monitor_gym=False,
+                      save_code=True)
+-    return env, run
++    return vec_env, run
+ 
+ 
+ def training_initialization(algorithm_model):
+@@ -62,13 +70,12 @@ def training_initialization(algorithm_model):
+     device = "cpu" if algorithm_name == "PPO" else "cuda"
+     model = algorithm_model(
+         "MlpPolicy",
+-        env,
++        vec_env,
+         device=device,
+         verbose=1,
+         tensorboard_log=f"runs/{algorithm_name}"
+     )
+ 
+-    vec_env = model.get_env()
+     obs = vec_env.reset()
+ 
+     model.learn(
+@@ -86,6 +93,7 @@ def train(model, vec_env, run, obs):
+     for _ in range(NUM_EPISODES):
+         action, _state = model.predict(obs, deterministic=True)
+         obs, reward, done, info = vec_env.step(action)
++        vec_env.render()
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/simulate_environment.py b/simulate_environment.py
+index 07cfb55..da24d19 100644
+--- a/simulate_environment.py
++++ b/simulate_environment.py
+@@ -2,10 +2,11 @@ import mujoco
+ import mujoco.viewer
+ from stable_baselines3 import PPO, SAC, DDPG
+ import numpy as np
++from gymnasium.wrappers import TimeLimit
+ 
+ ppo = PPO.load("models/PPO/v1/model.zip")
+ sac = SAC.load("models/SAC/v1/model.zip")
+-ddpg = DDPG.load("models/DDPG/v0/model.zip")
++ddpg = DDPG.load("models/DDPG/v1/model.zip")
+ 
+ algorithm = sac
+ 
+diff --git a/wandb/latest-run b/wandb/latest-run
+index c12805d..ff8682c 120000
+--- a/wandb/latest-run
++++ b/wandb/latest-run
+@@ -1 +1 @@
+-run-20241217_110126-715bm1l0
+\ No newline at end of file
++run-20241218_113118-k25lqdq4
+\ No newline at end of file
