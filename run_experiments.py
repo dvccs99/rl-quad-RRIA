@@ -1,14 +1,15 @@
-import gymnasium as gym
-import rl_quad
 from stable_baselines3 import SAC, PPO, DDPG
 from stable_baselines3.common.env_util import make_vec_env
 from wandb.integration.sb3 import WandbCallback
-from stable_baselines3.common.monitor import Monitor
 import wandb
+import rl_quad
 
 NUM_EPISODES = 50000
 NUM_TIME_STEPS = 5000000
 GRADIENT_SAVE_FREQ = 100
+ENVS_NUMBER = 50
+MAX_EPISODE_STEPS = 10000
+LEARNING_RATE = 0.003
 
 ENV_PARAMETERS = {
     'FORWARD_REWARD_WEIGHT': 1.2,
@@ -29,22 +30,21 @@ MUJOCO_PARAMETERS = {
 }
 
 
-def env_initialization(model_name):
+def env_initialization(model_name: str):
     """
+    Initializes vectorized SB3 environment and starts WandB run.
     Args:
-        model_name (_type_): _description_
+        model_name (str): SB3 algorithm name
 
     Returns:
-        _type_: _description_
+        List: list containing vectorized environment and Wandb run
     """
-
     vec_env = make_vec_env(env_id='rl_quad/quad_env',
-                           n_envs=50,
+                           n_envs=ENVS_NUMBER,
                            env_kwargs={
                             "mujoco_parameters": MUJOCO_PARAMETERS,
                             "env_parameters": ENV_PARAMETERS,
-                            "max_episode_steps": 10000,
-                           })
+                            "max_episode_steps": MAX_EPISODE_STEPS})
     wandb.login(key="3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec")
     run = wandb.init(name=model_name,
                      project="Quad_Mujoco",
@@ -56,13 +56,14 @@ def env_initialization(model_name):
 
 def training_initialization(algorithm_model):
     """
-
+    Initializes the SB3 algorithm, vectorized environment, WandB run and
+    initial observation.
 
     Args:
-        algorithm_model (_type_): _description_
+        algorithm_model (class): SB3 algorithm to be used
 
     Returns:
-        _type_: _description_
+        list: List containing all of the above output.
     """
     algorithm_name = algorithm_model.__name__
     vec_env, run = env_initialization(algorithm_name)
@@ -72,11 +73,11 @@ def training_initialization(algorithm_model):
         vec_env,
         device=device,
         verbose=1,
-        tensorboard_log=f"runs/{algorithm_name}"
+        tensorboard_log=f"runs/{algorithm_name}",
+        learning_rate=LEARNING_RATE
     )
 
     obs = vec_env.reset()
-
     model.learn(
         total_timesteps=NUM_TIME_STEPS,
         callback=WandbCallback(
@@ -89,10 +90,18 @@ def training_initialization(algorithm_model):
 
 
 def train(model, vec_env, run, obs):
+    """
+    Training function.
+
+    Args:
+        model (class): SB3 algorithm to be used.
+        vec_env (VecEnv): Vectorized quadruped environment
+        run (Run): WandB Run
+        obs (VecEnvObs): Vectorized environment observation
+    """
     for _ in range(NUM_EPISODES):
         action, _state = model.predict(obs, deterministic=True)
         obs, reward, done, info = vec_env.step(action)
-        vec_env.render()
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ from gymnasium.spaces import Box
 
 class QuadEnv(MujocoEnv):
     """
+    Custom Gymnasium environment used for training a quadruped robot with
+    deep RL.
     """
 
     def __init__(self, env_parameters, mujoco_parameters):
@@ -26,7 +28,7 @@ class QuadEnv(MujocoEnv):
         MujocoEnv.__init__(self,
                            model_path="./robot/anybotics_anymal_c/scene.xml",
                            frame_skip=mujoco_parameters['frame_skip'],
-                           observation_space=None,  # needs to be defined after
+                           observation_space=None,
                            default_camera_config={"distance": 4.0},
                            camera_name='track',
                            render_mode=mujoco_parameters['render_mode'])
@@ -141,8 +143,6 @@ class QuadEnv(MujocoEnv):
 
         xy_velocity = (xy_position_after - xy_position_before) / self.dt
         x_velocity, y_velocity = xy_velocity
-
-        # TODO: PASSAR A VELOCIDADE ANGULAR PARA GET_REW
 
         observation = self.__get_obs()
         reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
