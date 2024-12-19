@@ -9,7 +9,9 @@ NUM_TIME_STEPS = 5000000
 GRADIENT_SAVE_FREQ = 100
 ENVS_NUMBER = 50
 MAX_EPISODE_STEPS = 10000
-LEARNING_RATE = 0.05
+LEARNING_RATE = 0.0003
+BATCH_SIZE = 32
+BUFFER_SIZE = 1000000
 
 ENV_PARAMETERS = {
     'FORWARD_REWARD_WEIGHT': 1.5,
@@ -74,7 +76,9 @@ def training_initialization(algorithm_model):
         device=device,
         verbose=1,
         tensorboard_log=f"runs/{algorithm_name}",
-        learning_rate=LEARNING_RATE
+        learning_rate=LEARNING_RATE,
+        buffer_size=BUFFER_SIZE,
+        batch_size=BATCH_SIZE
     )
 
     obs = vec_env.reset()
