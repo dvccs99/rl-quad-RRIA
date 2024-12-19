@@ -42,17 +42,13 @@ def env_initialization(model_name: str):
         List: list containing vectorized environment and Wandb run
     """
     vec_env = make_vec_env(env_id='rl_quad/quad_env',
-                           n_envs=ENVS_NUMBER,
-                           env_kwargs={
-                            "mujoco_parameters": MUJOCO_PARAMETERS,
-                            "env_parameters": ENV_PARAMETERS,
-                            "max_episode_steps": MAX_EPISODE_STEPS})
+                           n_envs=ENVS_NUMBER)
     wandb.login(key="3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec")
     run = wandb.init(name=model_name,
                      project="Quad_Mujoco",
                      sync_tensorboard=True,
-                     monitor_gym=False,
-                     save_code=True)
+                     monitor_gym=True,
+                     save_code=True,)
     return vec_env, run
 
 
