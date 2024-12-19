@@ -18,6 +18,7 @@ class QuadEnv(MujocoEnv):
         self.CONTROL_COST_WEIGHT = env_parameters["CONTROL_COST_WEIGHT"]
         self.CONTACT_COST_WEIGHT = env_parameters["CONTACT_COST_WEIGHT"]
         self.CONTACT_FORCE_RANGE = env_parameters["CONTACT_FORCE_RANGE"]
+        self.HEALTHY_Z_RANGE = env_parameters["HEALTHY_Z_RANGE"]
         self._main_body: Union[int, str] = 1
 
         self.metadata = {"render_modes": [
@@ -56,8 +57,8 @@ class QuadEnv(MujocoEnv):
         Returns:
             bool: True if the robot is healthy, False otherwise
         """
-        MIN_Z = 0.2
-        MAX_Z = 1.0
+        MIN_Z = self.HEALTHY_Z_RANGE[0]
+        MAX_Z = self.HEALTHY_Z_RANGE[1]
 
         state = self.state_vector()
         is_healthy = np.isfinite(state).all() and MIN_Z <= state[2] <= MAX_Z
@@ -173,15 +174,11 @@ class QuadEnv(MujocoEnv):
         """
         forward_reward = x_velocity * self.FORWARD_REWARD_WEIGHT
         healthy_reward = self.healthy_reward
-        # vel_reward = self.reward_tracking_lin_vel(commands=action,
-        #                                           x_velocity=x_velocity,
-        #                                           y_velocity=y_velocity)
-
         rewards = forward_reward + healthy_reward
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
-        costs = ctrl_cost
+        costs = ctrl_cost + contact_cost
 
         reward = rewards - costs
 
