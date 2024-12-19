@@ -30,13 +30,8 @@ def get_obs():
 with mujoco.viewer.launch_passive(mujoco_model, data) as viewer:
     while viewer.is_running():
         obs = get_obs()
-        # action, _states = algorithm.predict(obs, deterministic=True)
-        action = [0]*12
+        action, _states = algorithm.predict(obs, deterministic=True)
         with viewer.lock():
             data.ctrl[:] = action
-        print("==================================")
-        for i in range(mujoco_model.ngeom):
-            print(mujoco_model.body(1))
-        print("==================================")
         mujoco.mj_step(mujoco_model, data)
         viewer.sync()
