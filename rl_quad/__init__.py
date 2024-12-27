@@ -1,6 +1,6 @@
 from gymnasium.envs.registration import register
 
 register(
-    id="rl_quad/quad_env",
+    id="QuadEnv",
     entry_point="rl_quad.envs:QuadEnv",
 )

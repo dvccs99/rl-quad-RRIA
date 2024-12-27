@@ -1,51 +1,118 @@
-from typing import Union
 import numpy as np
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
+from gymnasium import utils
+from typing import Dict, Tuple, Union
 
 
-class QuadEnv(MujocoEnv):
+DEFAULT_CAMERA = {
+    "distance": 4.0,
+}
+
+
+class QuadEnv(MujocoEnv, utils.EzPickle):
     """
     Custom Gymnasium environment used for training a quadruped robot with
     deep RL.
     """
 
-    def __init__(self, env_parameters, mujoco_parameters):
-        self.HEALTHY_REWARD_WEIGHT = env_parameters["HEALTHY_REWARD_WEIGHT"]
-        self.TRACKING_REWARD_WEIGHT = env_parameters["TRACKING_REWARD_WEIGHT"]
-        self.RESET_NOISE_SCALE = env_parameters["RESET_NOISE_SCALE"]
-        self.FORWARD_REWARD_WEIGHT = env_parameters["FORWARD_REWARD_WEIGHT"]
-        self.CONTROL_COST_WEIGHT = env_parameters["CONTROL_COST_WEIGHT"]
-        self.CONTACT_COST_WEIGHT = env_parameters["CONTACT_COST_WEIGHT"]
-        self.CONTACT_FORCE_RANGE = env_parameters["CONTACT_FORCE_RANGE"]
-        self.HEALTHY_Z_RANGE = env_parameters["HEALTHY_Z_RANGE"]
-        self._main_body: Union[int, str] = 1
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+    }
 
-        self.metadata = {"render_modes": [
-                         "human",
-                         "rgb_array",
-                         "depth_array"]}
+    def __init__(
+        self,
+        xml_file: str = "./robot/anybotics_anymal_c/scene.xml",
+        frame_skip: int = 5,
+        default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
+        forward_reward_weight: float = 1.5,
+        ctrl_cost_weight: float = 0.5,
+        contact_cost_weight: float = 5e-4,
+        healthy_reward: float = 1.5,
+        tracking_reward_weight: float = 0.5,
+        main_body: Union[int, str] = 1,
+        terminate_when_unhealthy: bool = True,
+        healthy_z_range: Tuple[float, float] = (0.4, 0.9),
+        contact_force_range: Tuple[float, float] = (-1.0, 1.0),
+        reset_noise_scale: float = 0.1,
+        exclude_current_positions_from_observation: bool = True,
+        include_cfrc_ext_in_observation: bool = True,
+        render_mode=None,
+        **kwargs,
+    ):
+        utils.EzPickle.__init__(
+            self,
+            xml_file,
+            frame_skip,
+            default_camera_config,
+            forward_reward_weight,
+            ctrl_cost_weight,
+            contact_cost_weight,
+            healthy_reward,
+            main_body,
+            terminate_when_unhealthy,
+            healthy_z_range,
+            contact_force_range,
+            reset_noise_scale,
+            exclude_current_positions_from_observation,
+            include_cfrc_ext_in_observation,
+            render_mode,
+            **kwargs,
+        )
 
-        MujocoEnv.__init__(self,
-                           model_path="./robot/anybotics_anymal_c/scene.xml",
-                           frame_skip=mujoco_parameters['frame_skip'],
-                           observation_space=None,
-                           default_camera_config={"distance": 4.0},
-                           camera_name='track',
-                           render_mode=mujoco_parameters['render_mode'])
+        self._forward_reward_weight = forward_reward_weight
+        self._ctrl_cost_weight = ctrl_cost_weight
+        self._contact_cost_weight = contact_cost_weight
+        self._tracking_reward_weight = tracking_reward_weight
+        self._healthy_reward = healthy_reward
+        self._terminate_when_unhealthy = terminate_when_unhealthy
+        self._healthy_z_range = healthy_z_range
+        self._contact_force_range = contact_force_range
+        self._main_body = main_body
+        self._reset_noise_scale = reset_noise_scale
+        self._exclude_current_positions_from_observation = (
+            exclude_current_positions_from_observation
+        )
+        self._include_cfrc_ext_in_observation = include_cfrc_ext_in_observation
+        self.render_mode = render_mode
 
-        self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
+        MujocoEnv.__init__(
+            self,
+            xml_file,
+            frame_skip,
+            observation_space=None,  # needs to be defined after
+            default_camera_config=default_camera_config,
+            **kwargs,
+        )
+
+        self.metadata = {
+            "render_modes": [
+                "human",
+                "rgb_array",
+                "depth_array",
+            ],
+            "render_fps": int(np.round(1.0 / self.dt)),
+        }
 
         obs_size = self.data.qpos.size + self.data.qvel.size
+        obs_size -= 2 * exclude_current_positions_from_observation
+        obs_size += self.data.cfrc_ext[1:].size * include_cfrc_ext_in_observation
 
-        # TODO: EXCLUDE X AND Y?
-        obs_size -= 2
-        obs_size += self.data.cfrc_ext[1:].size
+        self.observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(obs_size,), dtype=np.float64
+        )
 
-        self.observation_space = Box(low=-np.inf,
-                                     high=np.inf,
-                                     shape=(obs_size,),
-                                     dtype=np.float64)
+        self.observation_structure = {
+            "skipped_qpos": 2 * exclude_current_positions_from_observation,
+            "qpos": self.data.qpos.size
+            - 2 * exclude_current_positions_from_observation,
+            "qvel": self.data.qvel.size,
+            "cfrc_ext": self.data.cfrc_ext[1:].size * include_cfrc_ext_in_observation,
+        }
 
     @property
     def is_healthy(self) -> bool:
@@ -57,8 +124,8 @@ class QuadEnv(MujocoEnv):
         Returns:
             bool: True if the robot is healthy, False otherwise
         """
-        MIN_Z = self.HEALTHY_Z_RANGE[0]
-        MAX_Z = self.HEALTHY_Z_RANGE[1]
+        MIN_Z = 0.2
+        MAX_Z = 1.0
 
         state = self.state_vector()
         is_healthy = np.isfinite(state).all() and MIN_Z <= state[2] <= MAX_Z
@@ -72,7 +139,7 @@ class QuadEnv(MujocoEnv):
         Returns:
             float: reward value
         """
-        return self.is_healthy * self.HEALTHY_REWARD_WEIGHT
+        return self.is_healthy * self._healthy_reward
 
     def control_cost(self, action: np.ndarray) -> float:
         """
@@ -84,7 +151,7 @@ class QuadEnv(MujocoEnv):
         Returns:
             float: control cost
         """
-        control_cost = self.CONTROL_COST_WEIGHT * np.sum(np.square(action))
+        control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
         return control_cost
 
     @property
@@ -100,9 +167,9 @@ class QuadEnv(MujocoEnv):
         MAX_CONTACT_FORCE = 1.0
 
         raw_contact_forces = self.data.cfrc_ext
-        contact_forces = np.clip(raw_contact_forces,
-                                 MIN_CONTACT_FORCE,
-                                 MAX_CONTACT_FORCE)
+        contact_forces = np.clip(
+            raw_contact_forces, MIN_CONTACT_FORCE, MAX_CONTACT_FORCE
+        )
         return contact_forces
 
     @property
@@ -114,13 +181,13 @@ class QuadEnv(MujocoEnv):
             float: cost value
         """
         contact_forces_value = np.sum(np.square(self.contact_forces))
-        contact_cost = self.CONTACT_COST_WEIGHT * contact_forces_value
+        contact_cost = self._contact_cost_weight * contact_forces_value
         return contact_cost
 
     def step(
         self,
         action: np.ndarray,
-            ) -> tuple[np.ndarray, float, bool, bool, dict]:
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
 
 
@@ -172,20 +239,26 @@ class QuadEnv(MujocoEnv):
         Returns:
             tuple: _description_
         """
-        forward_reward = x_velocity * self.FORWARD_REWARD_WEIGHT
+        forward_reward = x_velocity * self._forward_reward_weight
         healthy_reward = self.healthy_reward
+        # vel_reward = self.reward_tracking_lin_vel(commands=action,
+        #                                           x_velocity=x_velocity,
+        #                                           y_velocity=y_velocity)
+
         rewards = forward_reward + healthy_reward
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
-        costs = ctrl_cost + contact_cost
+        costs = ctrl_cost
 
         reward = rewards - costs
 
-        reward_info = {"reward_forward": forward_reward,
-                       "reward_ctrl": -ctrl_cost,
-                       "reward_contact": 0,
-                       "reward_survive": healthy_reward}
+        reward_info = {
+            "reward_forward": forward_reward,
+            "reward_ctrl": -ctrl_cost,
+            "reward_contact": 0,
+            "reward_survive": healthy_reward,
+        }
 
         return reward, reward_info
 
@@ -211,14 +284,15 @@ class QuadEnv(MujocoEnv):
             np.ndarray: observation after reset.
         """
 
-        noise_low = -self.RESET_NOISE_SCALE
-        noise_high = self.RESET_NOISE_SCALE
+        noise_low = -self._reset_noise_scale
+        noise_high = self._reset_noise_scale
 
         qpos = self.init_qpos + self.np_random.uniform(
-            low=noise_low, high=noise_high, size=self.model.nq)
+            low=noise_low, high=noise_high, size=self.model.nq
+        )
 
         qvel_noise = self.np_random.standard_normal(self.model.nv)
-        qvel = (self.init_qvel + self.RESET_NOISE_SCALE * qvel_noise)
+        qvel = self.init_qvel + self._reset_noise_scale * qvel_noise
 
         self.set_state(qpos, qvel)
         observation = self.__get_obs()
@@ -236,25 +310,20 @@ class QuadEnv(MujocoEnv):
 
         rng = np.random.default_rng(seed=3141592)
 
-        lin_vel_x, lin_vel_y = rng.uniform(low=-MAX_LINEAR_SPEED,
-                                           high=MAX_LINEAR_SPEED,
-                                           size=2)
+        lin_vel_x, lin_vel_y = rng.uniform(
+            low=-MAX_LINEAR_SPEED, high=MAX_LINEAR_SPEED, size=2
+        )
 
-        ang_vel_yaw = rng.uniform(low=-MAX_ANGULAR_SPEED,
-                                  high=MAX_ANGULAR_SPEED)
+        ang_vel_yaw = rng.uniform(low=-MAX_ANGULAR_SPEED, high=MAX_ANGULAR_SPEED)
 
         cmd = np.array([lin_vel_x, lin_vel_y, ang_vel_yaw])
         return cmd
 
     def reward_tracking_lin_vel(
-        self,
-        commands: np.array,
-        x_velocity,
-        y_velocity
-            ) -> np.array:
+        self, commands: np.array, x_velocity, y_velocity
+    ) -> np.array:
 
-        distribution_sigma = self.TRACKING_REWARD_WEIGHT
-
+        distribution_sigma = self._tracking_reward_weight
         current_vel = np.array([x_velocity, y_velocity])
         vel_command = np.array([commands[0], commands[1]])
 
@@ -262,6 +331,5 @@ class QuadEnv(MujocoEnv):
         lin_vel_reward = np.exp(-lin_vel_error / distribution_sigma)
 
         return lin_vel_reward
-
 
     # TODO implementar reward pra velocidade angular usando cvel
