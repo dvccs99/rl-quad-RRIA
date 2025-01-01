@@ -68,7 +68,9 @@ def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+            env = gym.wrappers.RecordVideo(env,
+                                           f"videos/{run_name}",
+                                           episode_trigger=lambda x: x % args.video_freq == 0,)
         else:
             env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -153,6 +155,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     if args.track:
         import wandb
 
+        wandb.login(key='3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec')
         wandb.init(
             project=args.wandb_project_name,
             entity=args.wandb_entity,

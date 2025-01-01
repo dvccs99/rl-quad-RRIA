@@ -22,11 +22,12 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             "rgb_array",
             "depth_array",
         ],
+        "render_fps": 100,
     }
 
     def __init__(
         self,
-        xml_file: str = "./robot/anybotics_anymal_c/scene.xml",
+        xml_file: str = "/home/dvccs/dev/rl-quad-RRIA/robot/anybotics_anymal_c/scene.xml",
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
         forward_reward_weight: float = 1.5,
@@ -41,7 +42,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         reset_noise_scale: float = 0.1,
         exclude_current_positions_from_observation: bool = True,
         include_cfrc_ext_in_observation: bool = True,
-        render_mode=None,
+        render_mode="rgb_array",
         **kwargs,
     ):
         utils.EzPickle.__init__(
@@ -86,6 +87,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             frame_skip,
             observation_space=None,  # needs to be defined after
             default_camera_config=default_camera_config,
+            render_mode=render_mode,
             **kwargs,
         )
 
