@@ -4,8 +4,8 @@ from stable_baselines3 import PPO, SAC, DDPG
 import numpy as np
 
 ppo = PPO.load("models/PPO/v0/model.zip")
-sac = SAC.load("models/SAC/v4/model.zip")
-ddpg = DDPG.load("models/DDPG/v4/model.zip")
+# sac = SAC.load("models/SAC/v4/model.zip")
+# ddpg = DDPG.load("models/DDPG/v4/model.zip")
 
 algorithm = ppo
 
@@ -34,9 +34,5 @@ with mujoco.viewer.launch_passive(mujoco_model, data) as viewer:
         action = [0]*12
         with viewer.lock():
             data.ctrl[:] = action
-        print("==================================")
-        for i in range(mujoco_model.ngeom):
-            print(mujoco_model.body(1))
-        print("==================================")
         mujoco.mj_step(mujoco_model, data)
         viewer.sync()
