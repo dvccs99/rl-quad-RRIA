@@ -2,6 +2,7 @@ import mujoco
 import mujoco.viewer
 from stable_baselines3 import PPO, SAC, DDPG
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 ppo = PPO.load("models/PPO/v0/model.zip")
 # sac = SAC.load("models/SAC/v4/model.zip")
@@ -32,6 +33,8 @@ with mujoco.viewer.launch_passive(mujoco_model, data) as viewer:
         obs = get_obs()
         # action, _states = algorithm.predict(obs, deterministic=True)
         action = [0]*12
+        euler_angles = R.from_quat(data.body(1).xquat).as_matrix()
+        pitch = euler_angles[1]
         with viewer.lock():
             data.ctrl[:] = action
         mujoco.mj_step(mujoco_model, data)

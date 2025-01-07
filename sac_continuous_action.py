@@ -49,7 +49,7 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 256
+    batch_size: int = 32
     """the batch size of sample from the reply memory"""
     learning_starts: int = 5e3
     """timestep to start learning"""
@@ -164,7 +164,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             entity=args.wandb_entity,
             sync_tensorboard=True,
             config=vars(args),
-            name=run_name,
+            name=run_name,  
             monitor_gym=True,
             save_code=True,
         )
@@ -311,6 +311,24 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
                 if args.autotune:
                     writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
+
+            if global_step % 1000 == 0:
+                print("---------------------------------------------------------")
+                print(f"CUDA: {torch.cuda.is_available()}")
+                print(f"total reward: {rewards}")
+                print(f"global step: {global_step}")
+                print(f"qf1 values: {qf1_a_values.mean().item()}")
+                print(f"qf2 values: {qf2_a_values.mean().item()}")
+                print(f"qf1 loss: {qf1_loss.item()}")
+                print(f"qf2 loss: {qf2_loss.item()}")
+                print(f"qf loss: {qf_loss.item() / 2.0}")
+                print(f"actor loss: {actor_loss.item()}")
+                print(f"alpha: {alpha}")
+                print(f"SPS: {int(global_step / (time.time() - start_time))}")
+                if args.autotune:
+                    print(f"alpha loss: {alpha_loss.item()}")
+                print("---------------------------------------------------------")
+
 
     envs.close()
     writer.close()

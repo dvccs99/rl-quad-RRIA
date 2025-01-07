@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
 from gymnasium import utils
@@ -31,10 +32,10 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
         forward_reward_weight: float = 1.5,
-        ctrl_cost_weight: float = 0.5,
+        ctrl_cost_weight: float = 10,
         contact_cost_weight: float = 5e-4,
         healthy_reward: float = 1.5,
-        tracking_reward_weight: float = 0.5,
+        orientation_cost_weight: float = 30,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
@@ -68,7 +69,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
         self._contact_cost_weight = contact_cost_weight
-        self._tracking_reward_weight = tracking_reward_weight
+        self._orientation_cost_weight = orientation_cost_weight
         self._healthy_reward = healthy_reward
         self._terminate_when_unhealthy = terminate_when_unhealthy
         self._healthy_z_range = healthy_z_range
@@ -143,14 +144,20 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         """
         return self.is_healthy * self._healthy_reward
 
-    def orietation_reward(self) -> float:
+    @property
+    def orientation_cost(self) -> float:
         """
-        Calculates the reward given if the robot maintains a reasonable
-        orietation.
+        Calculates the cost given if the robot maintains a non-reasonable
+        orientation.
 
         Returns:
-            float: _description_
+            float: cost
         """
+        euler_angles = R.from_quat(self.data.body(1).xquat).as_matrix()
+        pitch = euler_angles[1][0]
+        cost = np.linalg.norm(pitch)
+        # print(f"orientation {self._orientation_cost_weight*cost}")
+        return cost
 
     def control_cost(self, action: np.ndarray) -> float:
         """
@@ -257,7 +264,8 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
-        costs = ctrl_cost
+        orientation_cost = self._orientation_cost_weight * self.orientation_cost
+        costs = ctrl_cost + orientation_cost
 
         reward = rewards - costs
 
