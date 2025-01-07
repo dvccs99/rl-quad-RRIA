@@ -1,0 +1,1 @@
+{"losses/actor_loss":6081.0815,"losses/alpha_loss":4.0341043,"_timestamp":1.7362571703698115e+09,"losses/qf_loss":451749.97,"losses/qf2_loss":439877.7,"_step":135,"charts/SPS":433,"losses/qf1_values":-7256.2173,"losses/alpha":0.45247987,"_wandb":{"runtime":17},"losses/qf1_loss":463622.25,"losses/qf2_values":-7291.0557,"global_step":6500,"_runtime":17.934782372}
