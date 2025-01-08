@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import gymnasium as gym
+import wandb
 import numpy as np
 import torch
 import torch.nn as nn
@@ -41,7 +42,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "QuadEnv"
     """the environment id of the task"""
-    total_timesteps: int = 1000000
+    total_timesteps: int = 2000
     """total timesteps of the experiments"""
     buffer_size: int = int(1e6)
     """the replay memory buffer size"""
@@ -49,7 +50,7 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 32
+    batch_size: int = 128
     """the batch size of sample from the reply memory"""
     learning_starts: int = 5e3
     """timestep to start learning"""
@@ -75,7 +76,7 @@ def make_env(env_id, seed, idx, capture_video, run_name):
                                            f"videos/{run_name}",
                                            episode_trigger=lambda x: x % args.video_freq == 0,)
         else:
-            env = gym.make(env_id)
+            env = gym.make(env_id, render_mode="rgb_array")
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
         return env
@@ -156,7 +157,6 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     args = tyro.cli(Args)
     run_name = f"run__{int(time.time())}"
     if args.track:
-        import wandb
 
         wandb.login(key='3664f3e41560a5c33e5f3f0e6e7d335e5189c5ec')
         wandb.init(
@@ -164,7 +164,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             entity=args.wandb_entity,
             sync_tensorboard=True,
             config=vars(args),
-            name=run_name,  
+            name=run_name,
             monitor_gym=True,
             save_code=True,
         )
@@ -328,7 +328,6 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 if args.autotune:
                     print(f"alpha loss: {alpha_loss.item()}")
                 print("---------------------------------------------------------")
-
 
     envs.close()
     writer.close()
