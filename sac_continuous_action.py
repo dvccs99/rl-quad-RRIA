@@ -36,13 +36,13 @@ class Args:
     """the entity (team) of wandb's project"""
     capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
-    video_freq: int = 50
+    video_freq: int = 100
     """number of episodes between recordings"""
 
     # Algorithm specific arguments
     env_id: str = "QuadEnv"
     """the environment id of the task"""
-    total_timesteps: int = 2000
+    total_timesteps: int = 40000
     """total timesteps of the experiments"""
     buffer_size: int = int(1e6)
     """the replay memory buffer size"""
@@ -50,7 +50,7 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 128
+    batch_size: int = 256
     """the batch size of sample from the reply memory"""
     learning_starts: int = 5e3
     """timestep to start learning"""
