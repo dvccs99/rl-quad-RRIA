@@ -36,13 +36,13 @@ class Args:
     """the entity (team) of wandb's project"""
     capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
-    video_freq: int = 5
+    video_freq: int = 1000
     """number of episodes between recordings"""
 
     # Algorithm specific arguments
     env_id: str = "QuadEnv"
     """the environment id of the task"""
-    total_timesteps: int = 4000
+    total_timesteps: int = 2000000
     """total timesteps of the experiments"""
     buffer_size: int = int(1e6)
     """the replay memory buffer size"""
