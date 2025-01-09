@@ -5,10 +5,11 @@ description = "Environment for development of RL-based controller for simulated 
 authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-gymnasium = {extras = ["mujoco"], version = "0.29.1"}
+python = ">=3.10,<3.13"
+gymnasium = {version = "0.29.1", extras = ["mujoco"]}
 tensorboard = "^2.18.0"
-wandb = "^0.19.1"
+wandb = "^0.13.11"
+numpy = "1.26.0"
 tyro = "^0.9.5"
 stable-baselines3 = {git = "https://github.com/DLR-RM/stable-baselines3"}
 moviepy = "^2.1.1"
