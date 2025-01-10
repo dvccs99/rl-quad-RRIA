@@ -18,6 +18,9 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from rl_quad.envs.quad_env import QuadEnv
 
 
+print(QuadEnv.ENVIRONMENT_NAME)
+
+
 @dataclass
 class Args:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]

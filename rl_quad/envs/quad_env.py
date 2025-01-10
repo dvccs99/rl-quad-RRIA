@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from gymnasium.envs.mujoco import MujocoEnv
@@ -5,7 +6,9 @@ from gymnasium.spaces import Box
 from gymnasium import utils
 from typing import Dict, Tuple, Union
 
+base_dir = Path(__file__).resolve().parent
 
+ROBOT_PATH = str(base_dir / "robot/anybotics_anymal_c/scene.xml")
 DEFAULT_CAMERA = {
     "distance": 4.0,
 }
@@ -17,6 +20,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
     deep RL.
     """
 
+    ENVIRONMENT_NAME = "QuadEnv - Reinforcement Learning Environment"
     metadata = {
         "render_modes": [
             "human",
@@ -28,7 +32,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
 
     def __init__(
         self,
-        xml_file: str = "/home/dvccs/dev/rl-quad-RRIA/robot/anybotics_anymal_c/scene.xml",
+        xml_file: str = ROBOT_PATH,
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
         forward_reward_weight: float = 1.5,
@@ -78,9 +82,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._contact_force_range = contact_force_range
         self._main_body = main_body
         self._reset_noise_scale = reset_noise_scale
-        self._exclude_current_positions = (
-            exclude_current_positions
-        )
+        self._exclude_current_positions = (exclude_current_positions)
         self._include_contact_forces = include_contact_forces
         self._include_qvel = include_qvel
         self.render_mode = render_mode
@@ -89,7 +91,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             self,
             xml_file,
             frame_skip,
-            observation_space=None,  # needs to be defined after
+            observation_space=None,
             default_camera_config=default_camera_config,
             render_mode=render_mode,
             **kwargs,
@@ -111,8 +113,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
 
         self.observation_structure = {
             "skipped_qpos": 2 * exclude_current_positions,
-            "qpos": self.data.qpos.size
-            - 2 * exclude_current_positions,
+            "qpos": self.data.qpos.size - 7,
             "qvel": self.data.qvel.size * include_qvel,
             "cfrc_ext": self.data.cfrc_ext[1:].size * include_contact_forces,
         }
