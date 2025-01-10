@@ -41,8 +41,9 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
         contact_force_range: Tuple[float, float] = (-1.0, 1.0),
         reset_noise_scale: float = 0.1,
-        exclude_current_positions_from_observation: bool = True,
-        include_cfrc_ext_in_observation: bool = True,
+        exclude_current_positions: bool = True, # TODO: useless fix this later
+        include_contact_forces: bool = False,
+        include_qvel: bool = False,
         render_mode="rgb_array",
         **kwargs,
     ):
@@ -60,8 +61,9 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             healthy_z_range,
             contact_force_range,
             reset_noise_scale,
-            exclude_current_positions_from_observation,
-            include_cfrc_ext_in_observation,
+            exclude_current_positions,
+            include_contact_forces,
+            include_qvel,
             render_mode,
             **kwargs,
         )
@@ -76,10 +78,11 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._contact_force_range = contact_force_range
         self._main_body = main_body
         self._reset_noise_scale = reset_noise_scale
-        self._exclude_current_positions_from_observation = (
-            exclude_current_positions_from_observation
+        self._exclude_current_positions = (
+            exclude_current_positions
         )
-        self._include_cfrc_ext_in_observation = include_cfrc_ext_in_observation
+        self._include_contact_forces = include_contact_forces
+        self._include_qvel = include_qvel
         self.render_mode = render_mode
 
         MujocoEnv.__init__(
@@ -101,20 +104,17 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             "render_fps": int(np.round(1.0 / self.dt)),
         }
 
-        obs_size = self.data.qpos.size + self.data.qvel.size
-        obs_size -= 2 * exclude_current_positions_from_observation
-        obs_size += self.data.cfrc_ext[1:].size * include_cfrc_ext_in_observation
-
+        obs_size = 12
         self.observation_space = Box(
             low=-np.inf, high=np.inf, shape=(obs_size,), dtype=np.float64
         )
 
         self.observation_structure = {
-            "skipped_qpos": 2 * exclude_current_positions_from_observation,
+            "skipped_qpos": 2 * exclude_current_positions,
             "qpos": self.data.qpos.size
-            - 2 * exclude_current_positions_from_observation,
-            "qvel": self.data.qvel.size,
-            "cfrc_ext": self.data.cfrc_ext[1:].size * include_cfrc_ext_in_observation,
+            - 2 * exclude_current_positions,
+            "qvel": self.data.qvel.size * include_qvel,
+            "cfrc_ext": self.data.cfrc_ext[1:].size * include_contact_forces,
         }
 
     @property
@@ -259,20 +259,20 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         """
         forward_reward = x_velocity * self._forward_reward_weight
         healthy_reward = self.healthy_reward
-
         rewards = forward_reward + healthy_reward
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
-        orientation_cost = self._orientation_cost_weight * self.orientation_cost
-        costs = ctrl_cost + orientation_cost
+        orientation_cost = self.orientation_cost
+        orientation_cost *= self._orientation_cost_weight
+        costs = ctrl_cost + orientation_cost + contact_cost
 
         reward = rewards - costs
-
         reward_info = {
             "reward_forward": forward_reward,
             "reward_ctrl": -ctrl_cost,
-            "reward_contact": 0,
+            "reward_contact": -contact_cost,
+            "reward_orientation": -orientation_cost,
             "reward_survive": healthy_reward,
         }
 
@@ -285,11 +285,15 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             np.ndarray: _description_
         """
-        position = self.data.qpos.flatten()
-        position = position[2:]
-        velocity = self.data.qvel.flatten()
-        contact_force = self.contact_forces[1:].flatten()
-        obs = np.concatenate((position, velocity, contact_force))
+        position = self.data.qpos[7:].flatten()
+        obs = position
+        if self._include_qvel:
+            velocity = self.data.qvel.flatten()
+            obs = np.concatenate((obs, velocity))
+        if self._include_contact_forces:
+            contact_force = self.contact_forces[1:].flatten()
+            obs = np.concatenate((obs, contact_force))
+        obs = np.array(obs, dtype=np.float32)
         return obs
 
     def reset_model(self) -> np.ndarray:

@@ -28,7 +28,7 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = True
+    track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "Quad_Mujoco"
     """the wandb's project name"""
@@ -42,7 +42,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "QuadEnv"
     """the environment id of the task"""
-    total_timesteps: int = 2000000
+    total_timesteps: int = 2000
     """total timesteps of the experiments"""
     buffer_size: int = int(1e6)
     """the replay memory buffer size"""

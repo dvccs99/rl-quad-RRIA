@@ -28,14 +28,21 @@ def get_obs():
     return obs
 
 
+angle = np.radians(90)
+qw = np.cos(angle / 2)  # Scalar part
+qx = 0                 # X-axis component
+qy = 0                 # Y-axis component
+qz = np.sin(angle / 2)  # Z-axis component
+
 with mujoco.viewer.launch_passive(mujoco_model, data) as viewer:
     while viewer.is_running():
         obs = get_obs()
         # action, _states = algorithm.predict(obs, deterministic=True)
-        action = [0]*12
+        action = [1]*12
         euler_angles = R.from_quat(data.body(1).xquat).as_matrix()
         pitch = euler_angles[1]
         with viewer.lock():
             data.ctrl[:] = action
+            print(data.qpos[7:])
         mujoco.mj_step(mujoco_model, data)
         viewer.sync()
