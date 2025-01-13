@@ -35,11 +35,11 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         xml_file: str = ROBOT_PATH,
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
-        forward_reward_weight: float = 1.5,
+        forward_reward_weight: float = 2,
         ctrl_cost_weight: float = 10,
         contact_cost_weight: float = 5e-4,
         healthy_reward: float = 1.5,
-        orientation_cost_weight: float = 30,
+        orientation_cost_weight: float = 2,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
@@ -86,6 +86,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._include_contact_forces = include_contact_forces
         self._include_qvel = include_qvel
         self.render_mode = render_mode
+        self.total_time = 0
 
         MujocoEnv.__init__(
             self,
@@ -143,7 +144,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: reward value
         """
-        return self.is_healthy * self._healthy_reward
+        return self.is_healthy * self._healthy_reward * self.total_time
 
     @property
     def orientation_cost(self) -> float:
@@ -222,7 +223,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
                 - Info
 
         """
-
+        self.total_time += 0.003
         xy_position_before = self.data.body(1).xpos[:2].copy()
         self.do_simulation(action, self.frame_skip)
         xy_position_after = self.data.body(1).xpos[:2].copy()
@@ -234,14 +235,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
         terminated = not self.is_healthy
         truncated = False
-        info = {
-            "x_position": self.data.qpos[0],
-            "y_position": self.data.qpos[1],
-            "distance_from_origin": np.linalg.norm(self.data.qpos[0:2], ord=2),
-            "x_velocity": x_velocity,
-            "y_velocity": y_velocity,
-            **reward_info,
-        }
+        info = reward_info
 
         if self.render_mode == "human":
             self.render()

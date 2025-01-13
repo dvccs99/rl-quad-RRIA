@@ -32,13 +32,13 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = True
+    track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "Quad_Mujoco"
     """the wandb's project name"""
     wandb_entity: Optional[str] = None
     """the entity (team) of wandb's project"""
-    capture_video: bool = True
+    capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     video_freq: int = 1000
     """number of episodes between recordings"""
@@ -316,10 +316,11 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 if args.autotune:
                     writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
 
-            if global_step % 1000 == 0:
+            if global_step % 10 == 0:
                 print("---------------------------------------------------------")
                 print(f"CUDA: {torch.cuda.is_available()}")
                 print(f"total reward: {rewards}")
+                print(f"info: {infos}")
                 print(f"global step: {global_step}")
                 print(f"qf1 values: {qf1_a_values.mean().item()}")
                 print(f"qf2 values: {qf2_a_values.mean().item()}")
