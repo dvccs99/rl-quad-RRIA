@@ -154,10 +154,9 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: cost
         """
-        euler_angles = R.from_quat(self.data.body(1).xquat).as_matrix()
-        pitch = euler_angles[1][0]
-        cost = np.linalg.norm(pitch)
-        # print(f"orientation {self._orientation_cost_weight*cost}")
+        euler_angles = R.from_quat(self.data.qpos[4:8]).as_euler(seq='xyz')
+        pitch = euler_angles[1]
+        cost = np.linalg.norm(pitch * self._orientation_cost_weight)
         return cost
 
     def control_cost(self, action: np.ndarray) -> float:
