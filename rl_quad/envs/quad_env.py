@@ -36,10 +36,11 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
         forward_reward_weight: float = 2,
-        ctrl_cost_weight: float = 10,
+        ctrl_cost_weight: float = 0.3,
         contact_cost_weight: float = 5e-4,
-        healthy_reward: float = 1.5,
+        healthy_reward: float = 1.2,
         orientation_cost_weight: float = 2,
+        running_time_constant: float = 0.03,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
@@ -86,6 +87,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._include_contact_forces = include_contact_forces
         self._include_qvel = include_qvel
         self.render_mode = render_mode
+        self.running_time_constant = running_time_constant
         self.total_time = 0
 
         MujocoEnv.__init__(
@@ -129,11 +131,8 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             bool: True if the robot is healthy, False otherwise
         """
-        MIN_Z = 0.2
-        MAX_Z = 1.0
-
         state = self.state_vector()
-        is_healthy = np.isfinite(state).all() and MIN_Z <= state[2] <= MAX_Z
+        is_healthy = np.isfinite(state).all() and self._healthy_z_range[0] <= state[2]
         return is_healthy
 
     @property
@@ -144,7 +143,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: reward value
         """
-        return self.is_healthy * self._healthy_reward * self.total_time
+        return self.is_healthy * self._healthy_reward + self.running_time
 
     @property
     def orientation_cost(self) -> float:
@@ -223,7 +222,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
                 - Info
 
         """
-        self.total_time += 0.003
+        self.running_time += self.running_time_constant
         xy_position_before = self.data.body(1).xpos[:2].copy()
         self.do_simulation(action, self.frame_skip)
         xy_position_after = self.data.body(1).xpos[:2].copy()
@@ -234,6 +233,8 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         observation = self.__get_obs()
         reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
         terminated = not self.is_healthy
+        if terminated:
+            self.running_time = 0
         truncated = False
         info = reward_info
 
