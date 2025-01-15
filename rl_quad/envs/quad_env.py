@@ -35,12 +35,12 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         xml_file: str = ROBOT_PATH,
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
-        forward_reward_weight: float = 3,
-        ctrl_cost_weight: float = 0.3,
+        forward_reward_weight: float = 12,
+        ctrl_cost_weight: float = 0.1,
         contact_cost_weight: float = 5e-4,
         healthy_reward: float = 1.2,
         orientation_cost_weight: float = 2,
-        running_time_constant: float = 0.03,
+        running_time_constant: float = 0.1,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
@@ -157,8 +157,8 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         euler_angles = R.from_quat(self.data.qpos[4:8]).as_euler(seq='xyz')
         roll = euler_angles[0]
         pitch = euler_angles[1]
-        cost = np.linalg.norm(pitch * self._orientation_cost_weight)
-        cost += np.linalg.norm(roll * self._orientation_cost_weight)
+        cost = np.linalg.norm(pitch) * self._orientation_cost_weight
+        cost += np.linalg.norm(roll) * self._orientation_cost_weight
         return cost
 
     def control_cost(self, action: np.ndarray) -> float:
