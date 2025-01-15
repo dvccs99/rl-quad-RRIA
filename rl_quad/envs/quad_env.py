@@ -40,7 +40,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         contact_cost_weight: float = 5e-4,
         healthy_reward: float = 1.2,
         orientation_cost_weight: float = 2,
-        running_time_constant: float = 0.1,
+        running_time_constant: float = 0.01,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
