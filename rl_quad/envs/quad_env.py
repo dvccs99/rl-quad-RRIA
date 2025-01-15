@@ -125,8 +125,8 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
     def is_healthy(self) -> bool:
         """
         Determines if the robot is "healthy", that is, if the values of its
-        state space are finite and its z coordinate is inside the interval
-        [MIN_Z, MAX_Z].
+        state space are finite and its z coordinate is inside the specified
+        parameters.
 
         Returns:
             bool: True if the robot is healthy, False otherwise
@@ -155,8 +155,10 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             float: cost
         """
         euler_angles = R.from_quat(self.data.qpos[4:8]).as_euler(seq='xyz')
+        roll = euler_angles[0]
         pitch = euler_angles[1]
         cost = np.linalg.norm(pitch * self._orientation_cost_weight)
+        cost += np.linalg.norm(roll * self._orientation_cost_weight)
         return cost
 
     def control_cost(self, action: np.ndarray) -> float:
