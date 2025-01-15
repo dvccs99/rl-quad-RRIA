@@ -40,7 +40,6 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         contact_cost_weight: float = 5e-4,
         healthy_reward: float = 1.2,
         orientation_cost_weight: float = 2,
-        running_time_constant: float = 0.01,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
@@ -86,7 +85,6 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._exclude_current_positions = (exclude_current_positions)
         self._include_contact_forces = include_contact_forces
         self._include_qvel = include_qvel
-        self._running_time_constant = running_time_constant
         self.render_mode = render_mode
         self.running_time = 0
 
@@ -143,7 +141,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: reward value
         """
-        return self.is_healthy * self._healthy_reward + self.running_time
+        return self.is_healthy * self._healthy_reward
 
     @property
     def orientation_cost(self) -> float:
@@ -224,7 +222,6 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
                 - Info
 
         """
-        self.running_time += self._running_time_constant
         xy_position_before = self.data.body(1).xpos[:2].copy()
         self.do_simulation(action, self.frame_skip)
         xy_position_after = self.data.body(1).xpos[:2].copy()

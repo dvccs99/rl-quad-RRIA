@@ -40,9 +40,9 @@ class Args:
     """the entity (team) of wandb's project"""
     capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
-    video_freq: int = 1000
+    video_freq: int = 400
     """number of episodes between recordings"""
-    n_envs: int = 60
+    n_envs: int = 50
     """number of parallel environments to run"""
 
     # Algorithm specific arguments
@@ -50,7 +50,7 @@ class Args:
     """the environment id of the task"""
     total_timesteps: int = 1000000
     """total timesteps of the experiments"""
-    buffer_size: int = int(1e6)
+    buffer_size: int = int(1e7)
     """the replay memory buffer size"""
     gamma: float = 0.99
     """the discount factor gamma"""
@@ -58,7 +58,7 @@ class Args:
     """target smoothing coefficient (default: 0.005)"""
     batch_size: int = 256
     """the batch size of sample from the reply memory"""
-    learning_starts: int = 100
+    learning_starts: int = 5e3
     """timestep to start learning"""
     policy_lr: float = 3e-4
     """the learning rate of the policy network optimizer"""
@@ -205,7 +205,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv(
+    envs = gym.vector.AsyncVectorEnv(
         [
             make_env(args.env_id, args.seed, i, args.capture_video, run_name)
             for i in range(args.n_envs)
@@ -383,7 +383,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                         "losses/alpha_loss", alpha_loss.item(), global_step
                     )
 
-            if global_step % 10 == 0:
+            if global_step % 100 == 0:
                 print("---------------------------------------------------------")
                 print(f"CUDA: {torch.cuda.is_available()}")
                 print(f"total reward: {rewards}")
