@@ -35,11 +35,13 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         xml_file: str = ROBOT_PATH,
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
-        forward_reward_weight: float = 12,
+        forward_reward_weight: float = 10,
         ctrl_cost_weight: float = 0.1,
         contact_cost_weight: float = 5e-4,
-        healthy_reward: float = 1.2,
-        orientation_cost_weight: float = 2,
+        action_change_cost_weight: float = 0.1,
+        healthy_reward: float = 1.5,
+        orientation_cost_weight: float = 3,
+        forward_sigma: float = 0.25,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = True,
         healthy_z_range: Tuple[float, float] = (0.4, 0.9),
@@ -75,6 +77,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
         self._contact_cost_weight = contact_cost_weight
+        self._action_change_cost_weight = action_change_cost_weight
         self._orientation_cost_weight = orientation_cost_weight
         self._healthy_reward = healthy_reward
         self._terminate_when_unhealthy = terminate_when_unhealthy
@@ -85,8 +88,10 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._exclude_current_positions = (exclude_current_positions)
         self._include_contact_forces = include_contact_forces
         self._include_qvel = include_qvel
+        self._forward_sigma = forward_sigma
         self.render_mode = render_mode
-        self.running_time = 0
+        self.current_action = None
+        self.previous_action = None
 
         MujocoEnv.__init__(
             self,
@@ -159,6 +164,20 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         cost += np.linalg.norm(roll) * self._orientation_cost_weight
         return cost
 
+    @property
+    def action_change_cost(self) -> float:
+        """
+        Calculates the cost associated to the change in the action taken by the
+        robot.
+
+        Returns:
+            float: cost value
+        """
+        if self.previous_action is None:
+            return 0
+        action_change = np.sum(np.abs(self.current_action - self.previous_action))
+        return action_change
+
     def control_cost(self, action: np.ndarray) -> float:
         """
         Gives the cost associated to the size of the taken action.
@@ -170,6 +189,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             float: control cost
         """
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
+        control_cost += self._ctrl_cost_weight * np.sum(np.abs(action))
         return control_cost
 
     @property
@@ -222,6 +242,13 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
                 - Info
 
         """
+        if self.previous_action is None:
+            self.previous_action = action
+            self.current_action = action
+        else:
+            self.previous_action = self.current_action
+            self.current_action = action
+
         xy_position_before = self.data.body(1).xpos[:2].copy()
         self.do_simulation(action, self.frame_skip)
         xy_position_after = self.data.body(1).xpos[:2].copy()
@@ -232,8 +259,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         observation = self.__get_obs()
         reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
         terminated = not self.is_healthy
-        if terminated:
-            self.running_time = 0
+
         truncated = False
         info = reward_info
 
@@ -259,7 +285,10 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         contact_cost = self.contact_cost
         orientation_cost = self.orientation_cost
         orientation_cost *= self._orientation_cost_weight
-        costs = ctrl_cost + orientation_cost + contact_cost
+        action_change_cost = self.action_change_cost
+        action_change_cost *= self._action_change_cost_weight
+
+        costs = ctrl_cost + orientation_cost + action_change_cost
 
         reward = rewards - costs
         reward_info = {
@@ -268,6 +297,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             "reward_contact": -contact_cost,
             "reward_orientation": -orientation_cost,
             "reward_survive": healthy_reward,
+            "reward_action_change": -action_change_cost,   
         }
 
         return reward, reward_info
