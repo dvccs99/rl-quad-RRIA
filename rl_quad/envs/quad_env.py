@@ -50,7 +50,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         reset_noise_scale: float = 0.1,
         exclude_current_positions: bool = True, # TODO: useless fix this later
         include_contact_forces: bool = False,
-        include_qvel: bool = False,
+        include_qvel: bool = True,
         render_mode="rgb_array",
         **kwargs,
     ):
@@ -114,7 +114,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             "render_fps": int(np.round(1.0 / self.dt)),
         }
 
-        obs_size = 12
+        obs_size = 30
         self.observation_space = Box(
             low=-np.inf, high=np.inf, shape=(obs_size,), dtype=np.float64
         )
