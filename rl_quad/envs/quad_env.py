@@ -36,6 +36,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
         forward_reward_weight: float = 9,
+        position_reward_weight: float = 0.2,
         ctrl_cost_weight: float = 0.1,
         contact_cost_weight: float = 5e-4,
         action_change_cost_weight: float = 1,
@@ -79,6 +80,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self._contact_cost_weight = contact_cost_weight
         self._action_change_cost_weight = action_change_cost_weight
         self._orientation_cost_weight = orientation_cost_weight
+        self._position_reward_weight = position_reward_weight
         self._healthy_reward = healthy_reward
         self._terminate_when_unhealthy = terminate_when_unhealthy
         self._healthy_z_range = healthy_z_range
@@ -277,9 +279,13 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             tuple: _description_
         """
-        forward_reward = x_velocity * self._forward_reward_weight
+        if x_velocity * self._forward_reward_weight > 10:
+            forward_reward = 5
+        else:
+            forward_reward = x_velocity * self._forward_reward_weight
+        position_reward = self.data.qpos[0] * self._position_reward_weight
         healthy_reward = self.healthy_reward
-        rewards = forward_reward + healthy_reward
+        rewards = forward_reward + healthy_reward + position_reward
 
         ctrl_cost = self.control_cost(action)
         contact_cost = self.contact_cost
@@ -298,6 +304,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             "reward_orientation": -orientation_cost,
             "reward_survive": healthy_reward,
             "reward_action_change": -action_change_cost,   
+            "reward_position": position_reward,
         }
 
         return reward, reward_info
