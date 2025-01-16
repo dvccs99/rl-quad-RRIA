@@ -32,13 +32,13 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = False
+    track: bool = True
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "Quad_Mujoco"
     """the wandb's project name"""
     wandb_entity: Optional[str] = None
     """the entity (team) of wandb's project"""
-    capture_video: bool = False
+    capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     video_freq: int = 200
     """number of episodes between recordings"""
@@ -50,7 +50,7 @@ class Args:
     """the environment id of the task"""
     total_timesteps: int = 1000000
     """total timesteps of the experiments"""
-    buffer_size: int = int(7e6)
+    buffer_size: int = int(8e6)
     """the replay memory buffer size"""
     gamma: float = 0.99
     """the discount factor gamma"""
