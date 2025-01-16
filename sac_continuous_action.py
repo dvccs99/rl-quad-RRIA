@@ -50,7 +50,7 @@ class Args:
     """the environment id of the task"""
     total_timesteps: int = 1000000
     """total timesteps of the experiments"""
-    buffer_size: int = int(8e6)
+    buffer_size: int = 1000000
     """the replay memory buffer size"""
     gamma: float = 0.99
     """the discount factor gamma"""
