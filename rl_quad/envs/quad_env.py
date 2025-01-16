@@ -35,13 +35,13 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         xml_file: str = ROBOT_PATH,
         frame_skip: int = 5,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
-        forward_reward_weight: float = 8,
-        position_reward_weight: float = 4,
-        ctrl_cost_weight: float = 0.1,
+        forward_reward_weight: float = 5,
+        position_reward_weight: float = 9,
+        ctrl_cost_weight: float = 0.05,
         contact_cost_weight: float = 5e-4,
         action_change_cost_weight: float = 1,
         healthy_reward: float = 10,
-        orientation_cost_weight: float = 6,
+        orientation_cost_weight: float = 4,
         forward_sigma: float = 0.25,
         main_body: Union[int, str] = 1,
         terminate_when_unhealthy: bool = False,
@@ -94,6 +94,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         self.render_mode = render_mode
         self.current_action = None
         self.previous_action = None
+        self.previous_action_2 = None
 
         MujocoEnv.__init__(
             self,
@@ -164,6 +165,9 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         pitch = euler_angles[1]
         cost = np.linalg.norm(pitch) * self._orientation_cost_weight
         cost += np.linalg.norm(roll) * self._orientation_cost_weight
+        state = self.state_vector()
+        z = state[2]
+        cost += np.linalg.norm(z-0.6) * self._orientation_cost_weight
         return cost
 
     @property
@@ -177,7 +181,8 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         """
         if self.previous_action is None:
             return 0
-        action_change = np.sum(np.abs(self.current_action - self.previous_action))
+        action_change = np.square(np.linalg.norm(self.current_action - self.previous_action))
+        action_change += np.square(np.linalg.norm(self.current_action - 2 * self.previous_action + self.previous_action_2)) 
         return action_change
 
     def control_cost(self, action: np.ndarray) -> float:
@@ -244,10 +249,12 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
                 - Info
 
         """
-        if self.previous_action is None:
+        if self.previous_action_2 is None:
+            self.previous_action_2 = action
             self.previous_action = action
             self.current_action = action
         else:
+            self.previous_action_2 = self.previous_action
             self.previous_action = self.current_action
             self.current_action = action
 
