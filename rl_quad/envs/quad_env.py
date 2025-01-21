@@ -3,18 +3,17 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
-from gymnasium import utils
 from typing import Dict, Tuple, Union
 
 base_dir = Path(__file__).resolve().parent
-
 ROBOT_PATH = str(base_dir / "robot/anybotics_anymal_c/scene.xml")
+QPOS_ROBOT_POSE_SIZE = 7
 DEFAULT_CAMERA = {
     "distance": 4.0,
 }
 
 
-class QuadEnv(MujocoEnv, utils.EzPickle):
+class QuadEnv(MujocoEnv):
     """
     Custom Gymnasium environment used for training a quadruped robot with
     deep RL.
@@ -37,10 +36,10 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA,
         forward_reward_weight: float = 5,
         position_reward_weight: float = 9,
-        ctrl_cost_weight: float = 0.05,
+        control_cost_weight: float = 0.05,
         contact_cost_weight: float = 5e-4,
         action_change_cost_weight: float = 1,
-        healthy_reward: float = 10,
+        healthy_reward_value: float = 10,
         orientation_cost_weight: float = 4,
         forward_sigma: float = 0.25,
         main_body: Union[int, str] = 1,
@@ -48,53 +47,29 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         healthy_z_range: Tuple[float, float] = (0.35, 0.9),
         contact_force_range: Tuple[float, float] = (-1.0, 1.0),
         reset_noise_scale: float = 0.1,
-        exclude_current_positions: bool = True, # TODO: useless fix this later
         include_contact_forces: bool = False,
         include_qvel: bool = True,
         render_mode="rgb_array",
         **kwargs,
     ):
-        utils.EzPickle.__init__(
-            self,
-            xml_file,
-            frame_skip,
-            default_camera_config,
-            forward_reward_weight,
-            ctrl_cost_weight,
-            contact_cost_weight,
-            healthy_reward,
-            main_body,
-            terminate_when_unhealthy,
-            healthy_z_range,
-            contact_force_range,
-            reset_noise_scale,
-            exclude_current_positions,
-            include_contact_forces,
-            include_qvel,
-            render_mode,
-            **kwargs,
-        )
-
-        self._forward_reward_weight = forward_reward_weight
-        self._ctrl_cost_weight = ctrl_cost_weight
-        self._contact_cost_weight = contact_cost_weight
-        self._action_change_cost_weight = action_change_cost_weight
-        self._orientation_cost_weight = orientation_cost_weight
-        self._position_reward_weight = position_reward_weight
-        self._healthy_reward = healthy_reward
-        self._terminate_when_unhealthy = terminate_when_unhealthy
-        self._healthy_z_range = healthy_z_range
-        self._contact_force_range = contact_force_range
-        self._main_body = main_body
-        self._reset_noise_scale = reset_noise_scale
-        self._exclude_current_positions = (exclude_current_positions)
-        self._include_contact_forces = include_contact_forces
-        self._include_qvel = include_qvel
-        self._forward_sigma = forward_sigma
+        self.forward_reward_weight = forward_reward_weight
+        self.control_cost_weight = control_cost_weight
+        self.contact_cost_weight = contact_cost_weight
+        self.action_change_cost_weight = action_change_cost_weight
+        self.orientation_cost_weight = orientation_cost_weight
+        self.position_reward_weight = position_reward_weight
+        self.healthy_reward_value = healthy_reward_value
+        self.terminate_when_unhealthy = terminate_when_unhealthy
+        self.healthy_z_range = healthy_z_range
+        self.contact_force_range = contact_force_range
+        self.main_body = main_body
+        self.reset_noise_scale = reset_noise_scale
+        self.include_contact_forces = include_contact_forces
+        self.include_qvel = include_qvel
+        self.forward_sigma = forward_sigma
         self.render_mode = render_mode
         self.current_action = None
         self.previous_action = None
-        self.previous_action_2 = None
 
         MujocoEnv.__init__(
             self,
@@ -115,16 +90,15 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             "render_fps": int(np.round(1.0 / self.dt)),
         }
 
-        obs_size = 30
+        obs_size = self.data.qpos.size + self.data.qvel.size - QPOS_ROBOT_POSE_SIZE
         self.observation_space = Box(
             low=-np.inf, high=np.inf, shape=(obs_size,), dtype=np.float64
         )
 
         self.observation_structure = {
-            "skipped_qpos": 2 * exclude_current_positions,
-            "qpos": self.data.qpos.size - 7,
+            "qpos": self.data.qpos.size - QPOS_ROBOT_POSE_SIZE,
             "qvel": self.data.qvel.size * include_qvel,
-            "cfrc_ext": self.data.cfrc_ext[1:].size * include_contact_forces,
+            "contact_forces": self.data.cfrc_ext[1:0] * include_contact_forces,
         }
 
     @property
@@ -138,7 +112,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             bool: True if the robot is healthy, False otherwise
         """
         state = self.state_vector()
-        is_healthy = np.isfinite(state).all() and self._healthy_z_range[0] <= state[2]
+        is_healthy = np.isfinite(state).all() and self.healthy_z_range[0] <= state[2]
         return is_healthy
 
     @property
@@ -149,7 +123,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: reward value
         """
-        return self.is_healthy * self._healthy_reward
+        return self.is_healthy * self.healthy_reward_value
 
     @property
     def orientation_cost(self) -> float:
@@ -160,15 +134,21 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: cost
         """
+        ANYMAL_C_STANDARD_HEIGHT = 0.6
+
         euler_angles = R.from_quat(self.data.qpos[4:8]).as_euler(seq='xyz')
         roll = euler_angles[0]
+        roll_norm = np.linalg.norm(roll)
+
         pitch = euler_angles[1]
-        cost = np.linalg.norm(pitch) * self._orientation_cost_weight
-        cost += np.linalg.norm(roll) * self._orientation_cost_weight
+        pitch_norm = np.linalg.norm(pitch)
+
         state = self.state_vector()
         z = state[2]
-        cost += np.linalg.norm(z-0.6) * self._orientation_cost_weight
-        return cost
+        z_norm = np.linalg.norm(z-ANYMAL_C_STANDARD_HEIGHT)
+
+        cost = self.orientation_cost_weight * (pitch_norm + roll_norm + z_norm)
+        return self.orientation_cost_weight * cost
 
     @property
     def action_change_cost(self) -> float:
@@ -181,9 +161,11 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         """
         if self.previous_action is None:
             return 0
-        action_change = np.square(np.linalg.norm(self.current_action - self.previous_action))
-        action_change += np.square(np.linalg.norm(self.current_action - 2 * self.previous_action + self.previous_action_2)) 
-        return action_change
+
+        action_difference = self.current_action - self.previous_action
+        action_change = np.square(np.linalg.norm(action_difference))
+
+        return self.action_change_cost_weight * action_change
 
     def control_cost(self, action: np.ndarray) -> float:
         """
@@ -195,8 +177,7 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
         Returns:
             float: control cost
         """
-        control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
-        control_cost += self._ctrl_cost_weight * np.sum(np.abs(action))
+        control_cost = self.control_cost_weight * (np.sum(np.square(action)) + np.sum(np.abs(action)))
         return control_cost
 
     @property
@@ -226,15 +207,63 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             float: cost value
         """
         contact_forces_value = np.sum(np.square(self.contact_forces))
-        contact_cost = self._contact_cost_weight * contact_forces_value
+        contact_cost = self.contact_cost_weight * contact_forces_value
         return contact_cost
+
+    @property
+    def position_reward(self) -> float:
+        """
+        Reward based on the x position of the robot.
+
+        Returns:
+            float: reward value
+        """
+        current_x_position = self.data.qpos[0]
+        if current_x_position < 0:
+            return 0
+        else:
+            return current_x_position * self.position_reward_weight
+
+    def forward_reward(self, x_velocity) -> float:
+        """
+        Reward based on the x velocity of the robot.
+
+        Returns:
+            float: reward value
+        """
+        if x_velocity * self.forward_reward_weight > 10:
+            forward_reward = 5
+        else:
+            forward_reward = x_velocity * self.forward_reward_weight
+        return forward_reward
+
+    def execute_action(self, action: np.ndarray) -> tuple:
+        """
+        Executes the given action and returns the x and y velocity of the robot
+
+        Args:
+            action (np.ndarray): Torques of all 12 joints
+
+        Returns:
+            tuple: x and y velocity of the robot
+        """
+        xy_position_before = self.data.body(1).xpos[:2].copy()
+        self.do_simulation(action, self.frame_skip)
+        xy_position_after = self.data.body(1).xpos[:2].copy()
+
+        xy_velocity = (xy_position_after - xy_position_before) / self.dt
+        x_velocity, y_velocity = xy_velocity
+
+        return x_velocity, y_velocity
 
     def step(
         self,
         action: np.ndarray,
     ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
-
+        Environment step function. It receives the action to be taken by the
+        robot and returns the observation, reward, termination status,
+        truncation status, and additional information.
 
         Args:
             action (np.ndarray): Torques of all 12 joints
@@ -249,26 +278,17 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
                 - Info
 
         """
-        if self.previous_action_2 is None:
-            self.previous_action_2 = action
+        if self.previous_action is None:
             self.previous_action = action
             self.current_action = action
         else:
-            self.previous_action_2 = self.previous_action
             self.previous_action = self.current_action
             self.current_action = action
 
-        xy_position_before = self.data.body(1).xpos[:2].copy()
-        self.do_simulation(action, self.frame_skip)
-        xy_position_after = self.data.body(1).xpos[:2].copy()
-
-        xy_velocity = (xy_position_after - xy_position_before) / self.dt
-        x_velocity, y_velocity = xy_velocity
-
+        x_velocity, _ = self.execute_action(action)
         observation = self.__get_obs()
-        reward, reward_info = self.__get_rew(x_velocity, y_velocity, action)
+        reward, reward_info = self.__get_rew(x_velocity, action)
         terminated = not self.is_healthy
-
         truncated = False
         info = reward_info
 
@@ -276,41 +296,40 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             self.render()
         return observation, reward, terminated, truncated, info
 
-    def __get_rew(self, x_velocity: float, y_velocity: float, action) -> tuple:
-        """_summary_
+    def __get_rew(self, x_velocity: float, action: np.ndarray) -> tuple:
+        """
+        Calculates the reward and reward information based on the x and y
+        velocity of the robot, the action taken, and the current state of the
+        robot. The forward reward is calculated based on the x velocity of the
+        robot and has a maximum value of 5. The position reward is calculated
+        based on the x position of the robot and is zero if the x position is
+        zero.
 
         Args:
-            x_velocity (float): _description_
-            action (_type_): _description_
-
+            x_velocity (float): x velocity of the robot
+            action (np.ndarray): Torques of all 12 joints
         Returns:
-            tuple: _description_
+            tuple: reward and reward information
         """
-        if x_velocity * self._forward_reward_weight > 10:
-            forward_reward = 5
-        else:
-            forward_reward = x_velocity * self._forward_reward_weight
-        position_reward = self.data.qpos[0] * self._position_reward_weight
+        position_reward = self.position_reward
         healthy_reward = self.healthy_reward
+        forward_reward = self.forward_reward(x_velocity)
         rewards = forward_reward + healthy_reward + position_reward
 
-        ctrl_cost = self.control_cost(action)
+        control_cost = self.control_cost(action)
         contact_cost = self.contact_cost
         orientation_cost = self.orientation_cost
-        orientation_cost *= self._orientation_cost_weight
         action_change_cost = self.action_change_cost
-        action_change_cost *= self._action_change_cost_weight
-
-        costs = ctrl_cost + orientation_cost + action_change_cost
+        costs = control_cost + orientation_cost + action_change_cost
 
         reward = rewards - costs
         reward_info = {
             "reward_forward": forward_reward,
-            "reward_ctrl": -ctrl_cost,
+            "reward_ctrl": -control_cost,
             "reward_contact": -contact_cost,
             "reward_orientation": -orientation_cost,
             "reward_survive": healthy_reward,
-            "reward_action_change": -action_change_cost,   
+            "reward_action_change": -action_change_cost,
             "reward_position": position_reward,
         }
 
@@ -318,19 +337,23 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
 
     def __get_obs(self) -> np.ndarray:
         """
-        Gymnasium observation function. Needs more detail.
+        Environment observation function. It returns the observation of the
+        environment, which is the position of the joints, the velocity of the
+        joints, and the contact forces.
 
         Returns:
-            np.ndarray: _description_
+            np.ndarray: observation
         """
-        position = self.data.qpos[7:].flatten()
+        position = self.data.qpos[QPOS_ROBOT_POSE_SIZE:].flatten()
         obs = position
-        if self._include_qvel:
+
+        if self.include_qvel:
             velocity = self.data.qvel.flatten()
             obs = np.concatenate((obs, velocity))
-        if self._include_contact_forces:
+        if self.include_contact_forces:
             contact_force = self.contact_forces[1:].flatten()
             obs = np.concatenate((obs, contact_force))
+
         obs = np.array(obs, dtype=np.float32)
         return obs
 
@@ -342,15 +365,15 @@ class QuadEnv(MujocoEnv, utils.EzPickle):
             np.ndarray: observation after reset.
         """
 
-        noise_low = -self._reset_noise_scale
-        noise_high = self._reset_noise_scale
+        noise_low = -self.reset_noise_scale
+        noise_high = self.reset_noise_scale
 
         qpos = self.init_qpos + self.np_random.uniform(
             low=noise_low, high=noise_high, size=self.model.nq
         )
 
         qvel_noise = self.np_random.standard_normal(self.model.nv)
-        qvel = self.init_qvel + self._reset_noise_scale * qvel_noise
+        qvel = self.init_qvel + self.reset_noise_scale * qvel_noise
 
         self.set_state(qpos, qvel)
         observation = self.__get_obs()
