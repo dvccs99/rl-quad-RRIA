@@ -3,7 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Callable
 
 
 import gymnasium as gym
@@ -74,8 +74,20 @@ class Args:
     """automatic tuning of the entropy coefficient"""
 
 
-def make_env(env_id, seed, idx, capture_video, run_name):
-    def thunk():
+def make_env(env_id, seed, idx, capture_video, run_name) -> Callable:
+    """_summary_
+
+    Args:
+        env_id (_type_): _description_
+        seed (_type_): _description_
+        idx (_type_): _description_
+        capture_video (_type_): _description_
+        run_name (_type_): _description_
+
+    Returns:
+        Callable: _description_
+    """
+    def create_env():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(
@@ -88,37 +100,41 @@ def make_env(env_id, seed, idx, capture_video, run_name):
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
         return env
+    return create_env
 
-    return thunk
 
-
-# ALGO LOGIC: initialize agent here:
 class SoftQNetwork(nn.Module):
-    def __init__(self, env):
+    """
+    The Q network used by SAC
+    """
+    def __init__(self, env: gym.Env):
         super().__init__()
-        self.fc1 = nn.Linear(
+        self.fully_connected_1 = nn.Linear(
             np.array(env.single_observation_space.shape).prod()
             + np.prod(env.single_action_space.shape),
             256,
         )
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 1)
+        self.fully_connected_2 = nn.Linear(256, 256)
+        self.fully_connected_3 = nn.Linear(256, 1)
 
-    def forward(self, x, a):
+    def forward(self, x: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
         x = torch.cat([x, a], 1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.relu(self.fully_connected_1(x))
+        x = F.relu(self.fully_connected_2(x))
+        x = self.fully_connected_3(x)
         return x
 
 
 class Actor(nn.Module):
+    """
+    The Actor network used by SAC. 
+    """
     def __init__(self, env):
         super().__init__()
         n_inputs = np.array(env.single_observation_space.shape).prod()
         n_actions = np.prod(env.single_action_space.shape)
-        self.fc1 = nn.Linear(n_inputs, 256)
-        self.fc2 = nn.Linear(256, 256)
+        self.fully_connected_1 = nn.Linear(n_inputs, 256)
+        self.fully_connected_2 = nn.Linear(256, 256)
         self.fc_mean = nn.Linear(256, n_actions)
         self.fc_logstd = nn.Linear(256, n_actions)
         # action rescaling
