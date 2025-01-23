@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "rl-quad-rria"
+version = "0.1.0"
+description = "Environment for development of RL-based controller for simulated Anymal C Robot"
+authors = ["Daniel-Salvador <dvccs@softex.cin.ufpe.br>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+gymnasium = {version = "0.29.1", extras = ["mujoco"]}
+tensorboard = "^2.18.0"
+wandb = "^0.13.11"
+numpy = "1.26.0"
+tyro = "^0.9.5"
+stable-baselines3 = {git = "https://github.com/DLR-RM/stable-baselines3"}
+moviepy = "^2.1.1"
+scipy = "^1.15.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
