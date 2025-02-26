@@ -3,7 +3,7 @@ import mujoco.viewer
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-ROBOT_PATH = "rl_quad/envs/robot/anybotics_anymal_c/scene_uneven.xml"
+ROBOT_PATH = "rl_quad/envs/robot/anybotics_anymal_c/scene_blender.xml"
 mujoco_model = mujoco.MjModel.from_xml_path(ROBOT_PATH)
 data = mujoco.MjData(mujoco_model)
 
